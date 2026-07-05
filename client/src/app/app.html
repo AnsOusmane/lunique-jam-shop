@@ -1,0 +1,45 @@
+<p class="announce">Livraison offerte en retrait Ouakam · <em>Faith is the Flex</em> · Drop 001 disponible</p>
+
+<header class="shop-header">
+  <a class="shop-header__brand" routerLink="/" aria-label="Lunique Jam — accueil boutique">
+    <svg><use href="#lj-arrow" /></svg>
+    LUNIQUE&nbsp;JAM
+  </a>
+  <nav class="shop-header__nav" aria-label="Navigation boutique">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Boutique</a>
+    <a routerLink="/suivi" routerLinkActive="active">Suivi</a>
+    <a class="cart-btn" routerLink="/panier" aria-label="Voir le panier">
+      Panier
+      @if (cart.count() > 0) {
+        <span class="cart-btn__count">{{ cart.count() }}</span>
+      }
+    </a>
+  </nav>
+</header>
+
+<router-outlet />
+
+<footer class="shop-footer">
+  <div class="shop-footer__grid">
+    <div>
+      <p class="shop-footer__brand">
+        <svg><use href="#lj-arrow" /></svg>
+        LUNIQUE JAM
+      </p>
+      <p style="opacity: 0.6; margin-top: 12px; max-width: 34ch">
+        Streetwear premium né à Dakar. Style with Values.
+      </p>
+    </div>
+    <nav aria-label="Liens boutique">
+      <a routerLink="/">Boutique</a>
+      <a routerLink="/panier">Panier</a>
+      <a routerLink="/suivi">Suivi de commande</a>
+      <a href="mailto:hello@luniquejam.com">hello&#64;luniquejam.com</a>
+    </nav>
+  </div>
+  <div class="shop-footer__legal">
+    <span>© MMXXVI Lunique Jam — Dakar, Sénégal</span>
+    <span>Clean fits, clean heart.</span>
+    <a routerLink="/admin/login" style="opacity: 0.7">Espace équipe</a>
+  </div>
+</footer>

@@ -1,0 +1,49 @@
+import { HttpInterceptorFn } from '@angular/common/http';
+import { Injectable, signal } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
+import { inject } from '@angular/core';
+
+const TOKEN_KEY = 'lj_admin_token';
+const NAME_KEY = 'lj_admin_name';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  readonly adminName = signal<string | null>(localStorage.getItem(NAME_KEY));
+
+  get token(): string | null {
+    return localStorage.getItem(TOKEN_KEY);
+  }
+
+  get isLogged(): boolean {
+    return !!this.token;
+  }
+
+  store(token: string, name: string): void {
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(NAME_KEY, name);
+    this.adminName.set(name);
+  }
+
+  logout(): void {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(NAME_KEY);
+    this.adminName.set(null);
+  }
+}
+
+/** Ajoute le JWT sur les routes admin. */
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  if (req.url.startsWith('/api/admin')) {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
+    }
+  }
+  return next(req);
+};
+
+export const adminGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.isLogged ? true : router.createUrlTree(['/admin/login']);
+};
