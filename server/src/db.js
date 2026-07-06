@@ -68,7 +68,47 @@ db.exec(`
     password_hash TEXT NOT NULL,
     name TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS customers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    phone TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    address TEXT,
+    city TEXT,
+    zone TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_ref TEXT,
+    channel TEXT NOT NULL,            -- email | sms
+    recipient TEXT NOT NULL,
+    subject TEXT,
+    body TEXT NOT NULL,
+    status TEXT NOT NULL,             -- sent | logged | failed
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS promos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL,               -- percent | amount
+    value INTEGER NOT NULL,
+    min_subtotal INTEGER NOT NULL DEFAULT 0,
+    expires_at TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
+
+/* ---------- Migrations additives (idempotentes) ---------- */
+const orderCols = db.prepare('PRAGMA table_info(orders)').all().map((c) => c.name);
+if (!orderCols.includes('customer_id')) db.exec('ALTER TABLE orders ADD COLUMN customer_id INTEGER');
+if (!orderCols.includes('promo_code')) db.exec('ALTER TABLE orders ADD COLUMN promo_code TEXT');
+if (!orderCols.includes('discount')) db.exec('ALTER TABLE orders ADD COLUMN discount INTEGER NOT NULL DEFAULT 0');
 
 /* ---------- Seed (idempotent) ---------- */
 const productCount = db.prepare('SELECT COUNT(*) AS n FROM products').get().n;
@@ -154,6 +194,12 @@ if (adminCount === 0) {
   db.prepare('INSERT INTO admins (email, password_hash, name) VALUES (?, ?, ?)')
     .run('admin@luniquejam.com', hash, 'Ansoumana');
   console.log('✓ Compte admin créé (admin@luniquejam.com) — hash Argon2id');
+}
+
+const promoCount = db.prepare('SELECT COUNT(*) AS n FROM promos').get().n;
+if (promoCount === 0) {
+  db.prepare("INSERT INTO promos (code, type, value, min_subtotal) VALUES ('GENESIS10', 'percent', 10, 0)").run();
+  console.log('✓ Code promo GENESIS10 (-10 %) seedé');
 }
 
 export default db;

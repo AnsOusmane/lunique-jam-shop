@@ -7,6 +7,7 @@ interface ConfirmState {
   result?: OrderResult;
   payment?: PaymentMethod;
   phone?: string;
+  email?: string;
 }
 
 @Component({
@@ -27,10 +28,16 @@ interface ConfirmState {
       </p>
 
       @if (state.result; as r) {
-        <p style="font-family: var(--font-label); margin: 10px 0 24px">
+        <p style="font-family: var(--font-label); margin: 10px 0 8px">
           Total : <strong>{{ r.total | fcfa }}</strong>
+          @if (r.discount > 0) { (remise -{{ r.discount | fcfa }}) }
           @if (r.deliveryFee === 0) { (retrait gratuit) }
           @else { (dont livraison {{ r.deliveryFee | fcfa }}) }
+        </p>
+      }
+      @if (state.email) {
+        <p style="opacity: 0.65; margin-bottom: 16px">
+          📧 Une confirmation détaillée t'a été envoyée à <strong>{{ state.email }}</strong>.
         </p>
       }
 

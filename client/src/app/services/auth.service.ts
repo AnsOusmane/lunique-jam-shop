@@ -31,10 +31,18 @@ export class AuthService {
   }
 }
 
-/** Ajoute le JWT sur les routes admin. */
+/** Ajoute le bon JWT selon la route : admin ou client. */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   if (req.url.startsWith('/api/admin')) {
     const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
+    }
+  } else if (
+    req.url.startsWith('/api/customers/me') ||
+    (req.url.startsWith('/api/orders') && req.method === 'POST')
+  ) {
+    const token = localStorage.getItem('lj_customer_token');
     if (token) {
       req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
     }

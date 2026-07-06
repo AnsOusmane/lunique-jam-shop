@@ -6,7 +6,12 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import db from './db.js';
-import { login, requireAdmin } from './auth.js';
+import {
+  login, requireAdmin,
+  registerCustomer, loginCustomer, customerToken, customerById,
+  requireCustomer, optionalCustomer,
+} from './auth.js';
+import { sendEmail, sendSms, orderConfirmationEmail, orderConfirmationSms, statusUpdateMessages } from './notify.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -37,6 +42,38 @@ function makeRef() {
   return ref;
 }
 
+/** Retourne { discount, promo } ou { error }. */
+function checkPromo(code, subtotal) {
+  const promo = db.prepare('SELECT * FROM promos WHERE code = ? AND active = 1').get(String(code).toUpperCase().trim());
+  if (!promo) return { error: 'Code promo invalide ou expiré' };
+  if (promo.expires_at && new Date(promo.expires_at) < new Date()) return { error: 'Code promo expiré' };
+  if (subtotal < promo.min_subtotal) {
+    return { error: `Ce code demande un minimum de ${promo.min_subtotal.toLocaleString('fr-FR')} F d'achat` };
+  }
+  const discount = promo.type === 'percent'
+    ? Math.round((subtotal * promo.value) / 100)
+    : Math.min(promo.value, subtotal);
+  return { discount, promo };
+}
+
+function notifyOrderCreated(orderId) {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+  if (!order) return;
+  const items = db.prepare('SELECT name, size, qty, price FROM order_items WHERE order_id = ?').all(orderId);
+  const mail = orderConfirmationEmail(order, items);
+  if (order.email) sendEmail({ orderRef: order.ref, to: order.email, ...mail }).catch(() => {});
+  sendSms({ orderRef: order.ref, to: order.phone, text: orderConfirmationSms(order) }).catch(() => {});
+}
+
+function notifyStatusChanged(orderId) {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+  if (!order) return;
+  const msgs = statusUpdateMessages(order);
+  if (!msgs) return;
+  if (order.email) sendEmail({ orderRef: order.ref, to: order.email, ...msgs.email }).catch(() => {});
+  sendSms({ orderRef: order.ref, to: order.phone, text: msgs.sms }).catch(() => {});
+}
+
 /* ============ Public : produits ============ */
 app.get('/api/products', (_req, res) => {
   const rows = db.prepare('SELECT * FROM products WHERE active = 1 ORDER BY id').all();
@@ -50,8 +87,8 @@ app.get('/api/products/:slug', (req, res) => {
 });
 
 /* ============ Public : commandes ============ */
-app.post('/api/orders', orderLimiter, (req, res) => {
-  const { customer, items, payment } = req.body || {};
+app.post('/api/orders', orderLimiter, optionalCustomer, (req, res) => {
+  const { customer, items, payment, promoCode } = req.body || {};
 
   // Validation
   if (!customer || typeof customer !== 'object') return res.status(400).json({ error: 'Informations client manquantes' });
@@ -81,8 +118,8 @@ app.post('/api/orders', orderLimiter, (req, res) => {
   const getVariant = db.prepare('SELECT v.id, v.stock, p.name, p.price FROM variants v JOIN products p ON p.id = v.product_id WHERE v.product_id = ? AND v.size = ? AND p.active = 1');
   const decrement = db.prepare('UPDATE variants SET stock = stock - ? WHERE id = ? AND stock >= ?');
   const insertOrder = db.prepare(`
-    INSERT INTO orders (ref, customer_name, phone, email, address, city, zone, delivery_fee, subtotal, total, payment_method)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO orders (ref, customer_name, phone, email, address, city, zone, delivery_fee, subtotal, total, payment_method, customer_id, promo_code, discount)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertItem = db.prepare('INSERT INTO order_items (order_id, product_id, name, size, qty, price) VALUES (?, ?, ?, ?, ?, ?)');
 
@@ -100,20 +137,32 @@ app.post('/api/orders', orderLimiter, (req, res) => {
         lines.push({ productId: it.productId, name: v.name, size: it.size, qty: it.qty, price: v.price });
       }
 
+      let discount = 0;
+      let appliedPromo = null;
+      if (promoCode) {
+        const check = checkPromo(promoCode, subtotal);
+        if (check.error) throw { status: 400, msg: check.error };
+        discount = check.discount;
+        appliedPromo = check.promo.code;
+      }
+
       const deliveryFee = ZONES[zone];
-      const total = subtotal + deliveryFee;
+      const total = Math.max(0, subtotal - discount) + deliveryFee;
       let ref = makeRef();
       while (db.prepare('SELECT 1 FROM orders WHERE ref = ?').get(ref)) ref = makeRef();
 
       const { lastInsertRowid: orderId } = insertOrder.run(
-        ref, name, phone, email || null, address, city, zone, deliveryFee, subtotal, total, payment
+        ref, name, phone, email || null, address, city, zone, deliveryFee, subtotal, total, payment,
+        req.customer?.sub ?? null, appliedPromo, discount,
       );
       for (const l of lines) insertItem.run(orderId, l.productId, l.name, l.size, l.qty, l.price);
 
-      return { ref, subtotal, deliveryFee, total };
+      return { orderId, ref, subtotal, discount, deliveryFee, total };
     })();
 
-    res.status(201).json(result);
+    notifyOrderCreated(result.orderId);
+    const { orderId, ...pub } = result;
+    res.status(201).json(pub);
   } catch (err) {
     if (err && err.status) return res.status(err.status).json({ error: err.msg });
     console.error(err);
@@ -133,7 +182,72 @@ app.get('/api/orders/:ref', (req, res) => {
   res.json({ ...pub, items });
 });
 
-/* ============ Auth ============ */
+/* ============ Public : code promo ============ */
+app.post('/api/promos/validate', (req, res) => {
+  const { code, subtotal } = req.body || {};
+  if (!code || !Number.isInteger(subtotal) || subtotal < 0) {
+    return res.status(400).json({ error: 'Code ou montant invalide' });
+  }
+  const check = checkPromo(code, subtotal);
+  if (check.error) return res.status(400).json({ error: check.error });
+  res.json({ code: check.promo.code, discount: check.discount });
+});
+
+/* ============ Comptes clients ============ */
+app.post('/api/customers/register', loginLimiter, async (req, res) => {
+  const { name, email, phone, password } = req.body || {};
+  if (!name || String(name).trim().length < 2) return res.status(400).json({ error: 'Nom invalide' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''))) return res.status(400).json({ error: 'E-mail invalide' });
+  if (!/^(\+?\d[\d\s]{7,17})$/.test(String(phone || '').trim())) return res.status(400).json({ error: 'Téléphone invalide' });
+  if (String(password || '').length < 8) return res.status(400).json({ error: 'Mot de passe : 8 caractères minimum' });
+
+  const result = await registerCustomer({ name, email, phone, password });
+  if (result.error) return res.status(409).json({ error: result.error });
+
+  sendEmail({
+    to: result.customer.email,
+    subject: 'Bienvenue dans le Cercle — Lunique Jam',
+    text: `Salut ${result.customer.name},\n\nTon compte Lunique Jam est prêt. Accès prioritaire aux drops, suivi simplifié, commandes plus rapides.\n\nClean fits, clean heart.\n— Lunique Jam, Dakar`,
+  }).catch(() => {});
+
+  res.status(201).json({ token: customerToken(result.customer), customer: result.customer });
+});
+
+app.post('/api/customers/login', loginLimiter, async (req, res) => {
+  const customer = await loginCustomer(req.body?.email, req.body?.password);
+  if (!customer) return res.status(401).json({ error: 'E-mail ou mot de passe incorrect' });
+  res.json({ token: customerToken(customer), customer });
+});
+
+app.get('/api/customers/me', requireCustomer, (req, res) => {
+  const customer = customerById(req.customer.sub);
+  if (!customer) return res.status(404).json({ error: 'Compte introuvable' });
+  const orders = db.prepare('SELECT * FROM orders WHERE customer_id = ? ORDER BY id DESC').all(customer.id);
+  const itemsStmt = db.prepare('SELECT name, size, qty, price FROM order_items WHERE order_id = ?');
+  res.json({ customer, orders: orders.map((o) => ({ ...o, items: itemsStmt.all(o.id) })) });
+});
+
+app.patch('/api/customers/me', requireCustomer, (req, res) => {
+  const { name, phone, address, city, zone } = req.body || {};
+  if (name !== undefined && String(name).trim().length < 2) return res.status(400).json({ error: 'Nom invalide' });
+  if (phone !== undefined && !/^(\+?\d[\d\s]{7,17})$/.test(String(phone).trim())) return res.status(400).json({ error: 'Téléphone invalide' });
+  if (zone !== undefined && zone !== '' && !(zone in ZONES)) return res.status(400).json({ error: 'Zone invalide' });
+
+  const current = customerById(req.customer.sub);
+  if (!current) return res.status(404).json({ error: 'Compte introuvable' });
+
+  db.prepare('UPDATE customers SET name = ?, phone = ?, address = ?, city = ?, zone = ? WHERE id = ?').run(
+    name !== undefined ? String(name).trim() : current.name,
+    phone !== undefined ? String(phone).trim() : current.phone,
+    address !== undefined ? String(address).trim() : current.address,
+    city !== undefined ? String(city).trim() : current.city,
+    zone !== undefined ? zone : current.zone,
+    current.id,
+  );
+  res.json({ customer: customerById(current.id) });
+});
+
+/* ============ Auth admin ============ */
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const result = await login(req.body?.email, req.body?.password);
   if (!result) return res.status(401).json({ error: 'Identifiants incorrects' });
@@ -149,18 +263,82 @@ app.get('/api/admin/orders', requireAdmin, (_req, res) => {
 
 app.patch('/api/admin/orders/:id', requireAdmin, (req, res) => {
   const { status, payment_status } = req.body || {};
-  const order = db.prepare('SELECT id FROM orders WHERE id = ?').get(req.params.id);
+  const order = db.prepare('SELECT id, status FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ error: 'Commande introuvable' });
 
-  if (status !== undefined) {
-    if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Statut invalide' });
-    db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, order.id);
+  let statusChanged = false;
+  try {
+    db.transaction(() => {
+      if (status !== undefined && status !== order.status) {
+        if (!STATUSES.includes(status)) throw { status: 400, msg: 'Statut invalide' };
+
+        const items = db.prepare('SELECT product_id, size, qty FROM order_items WHERE order_id = ?').all(order.id);
+        const restock = db.prepare('UPDATE variants SET stock = stock + ? WHERE product_id = ? AND size = ?');
+        const decrement = db.prepare('UPDATE variants SET stock = stock - ? WHERE product_id = ? AND size = ? AND stock >= ?');
+
+        if (status === 'annulee') {
+          // Annulation : on restitue le stock
+          for (const it of items) restock.run(it.qty, it.product_id, it.size);
+        } else if (order.status === 'annulee') {
+          // Réactivation : on re-décrémente, en refusant si le stock est parti ailleurs
+          for (const it of items) {
+            const changed = decrement.run(it.qty, it.product_id, it.size, it.qty).changes;
+            if (changed === 0) throw { status: 409, msg: 'Réactivation impossible : stock insuffisant (vendu entre-temps)' };
+          }
+        }
+        db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, order.id);
+        statusChanged = true;
+      }
+      if (payment_status !== undefined) {
+        if (!['en_attente', 'paye', 'rembourse'].includes(payment_status)) throw { status: 400, msg: 'Statut de paiement invalide' };
+        db.prepare('UPDATE orders SET payment_status = ? WHERE id = ?').run(payment_status, order.id);
+      }
+    })();
+  } catch (err) {
+    if (err && err.status) return res.status(err.status).json({ error: err.msg });
+    console.error(err);
+    return res.status(500).json({ error: 'Erreur serveur' });
   }
-  if (payment_status !== undefined) {
-    if (!['en_attente', 'paye', 'rembourse'].includes(payment_status)) return res.status(400).json({ error: 'Statut de paiement invalide' });
-    db.prepare('UPDATE orders SET payment_status = ? WHERE id = ?').run(payment_status, order.id);
-  }
+
+  if (statusChanged) notifyStatusChanged(order.id);
   res.json(db.prepare('SELECT * FROM orders WHERE id = ?').get(order.id));
+});
+
+/* ============ Admin : promos ============ */
+app.get('/api/admin/promos', requireAdmin, (_req, res) => {
+  res.json(db.prepare('SELECT * FROM promos ORDER BY id DESC').all());
+});
+
+app.post('/api/admin/promos', requireAdmin, (req, res) => {
+  const { code, type, value, min_subtotal, expires_at } = req.body || {};
+  const cleanCode = String(code || '').toUpperCase().trim();
+  if (!/^[A-Z0-9_-]{3,24}$/.test(cleanCode)) return res.status(400).json({ error: 'Code invalide (3-24 caractères A-Z 0-9)' });
+  if (!['percent', 'amount'].includes(type)) return res.status(400).json({ error: 'Type invalide' });
+  if (!Number.isInteger(value) || value <= 0 || (type === 'percent' && value > 90)) {
+    return res.status(400).json({ error: 'Valeur invalide (percent ≤ 90)' });
+  }
+  try {
+    db.prepare('INSERT INTO promos (code, type, value, min_subtotal, expires_at) VALUES (?, ?, ?, ?, ?)').run(
+      cleanCode, type, value, Number.isInteger(min_subtotal) && min_subtotal > 0 ? min_subtotal : 0, expires_at || null,
+    );
+  } catch {
+    return res.status(409).json({ error: 'Ce code existe déjà' });
+  }
+  res.status(201).json(db.prepare('SELECT * FROM promos WHERE code = ?').get(cleanCode));
+});
+
+app.patch('/api/admin/promos/:id', requireAdmin, (req, res) => {
+  const promo = db.prepare('SELECT * FROM promos WHERE id = ?').get(req.params.id);
+  if (!promo) return res.status(404).json({ error: 'Promo introuvable' });
+  const active = req.body?.active;
+  if (active !== 0 && active !== 1 && typeof active !== 'boolean') return res.status(400).json({ error: 'Champ active requis' });
+  db.prepare('UPDATE promos SET active = ? WHERE id = ?').run(active ? 1 : 0, promo.id);
+  res.json(db.prepare('SELECT * FROM promos WHERE id = ?').get(promo.id));
+});
+
+/* ============ Admin : notifications ============ */
+app.get('/api/admin/notifications', requireAdmin, (_req, res) => {
+  res.json(db.prepare('SELECT * FROM notifications ORDER BY id DESC LIMIT 100').all());
 });
 
 app.get('/api/admin/stock', requireAdmin, (_req, res) => {

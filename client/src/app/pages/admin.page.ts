@@ -1,15 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../services/api.service';
 import { AuthService } from '../services/auth.service';
 import { FcfaPipe } from '../fcfa.pipe';
-import { AdminOrder, AdminStats, PAYMENT_LABELS, STATUS_LABELS, StockRow } from '../models';
+import { AdminOrder, AdminStats, NotificationRow, PAYMENT_LABELS, Promo, STATUS_LABELS, StockRow } from '../models';
 
 @Component({
   selector: 'app-admin',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, FcfaPipe],
+  imports: [FormsModule, FcfaPipe, SlicePipe],
   template: `
     <main class="page">
       <header class="page-head" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px">
@@ -44,6 +45,8 @@ import { AdminOrder, AdminStats, PAYMENT_LABELS, STATUS_LABELS, StockRow } from 
       <div class="admin-tabs" role="tablist">
         <button class="chip" [class.active]="tab() === 'orders'" (click)="tab.set('orders')" role="tab">Commandes</button>
         <button class="chip" [class.active]="tab() === 'stock'" (click)="tab.set('stock')" role="tab">Stocks</button>
+        <button class="chip" [class.active]="tab() === 'promos'" (click)="tab.set('promos')" role="tab">Promos</button>
+        <button class="chip" [class.active]="tab() === 'notifs'" (click)="tab.set('notifs')" role="tab">Notifications</button>
       </div>
 
       @if (error()) {
@@ -101,7 +104,7 @@ import { AdminOrder, AdminStats, PAYMENT_LABELS, STATUS_LABELS, StockRow } from 
             </tbody>
           </table>
         </div>
-      } @else {
+      } @else if (tab() === 'stock') {
         <div class="table-scroll">
           <table class="admin-table" style="max-width: 640px">
             <thead>
@@ -128,6 +131,89 @@ import { AdminOrder, AdminStats, PAYMENT_LABELS, STATUS_LABELS, StockRow } from 
             </tbody>
           </table>
         </div>
+      } @else if (tab() === 'promos') {
+        <form class="form-grid" style="max-width: 720px; margin-bottom: 30px" (ngSubmit)="createPromo()" novalidate>
+          <div class="field">
+            <label for="pcode">Code</label>
+            <input id="pcode" name="pcode" [(ngModel)]="promoCode" placeholder="DROP002" style="text-transform: uppercase" />
+          </div>
+          <div class="field">
+            <label for="ptype">Type</label>
+            <select id="ptype" name="ptype" [(ngModel)]="promoType">
+              <option value="percent">Pourcentage (%)</option>
+              <option value="amount">Montant fixe (F)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pvalue">Valeur</label>
+            <input id="pvalue" name="pvalue" type="number" min="1" [(ngModel)]="promoValue" />
+          </div>
+          <div class="field">
+            <label for="pmin">Minimum d'achat (F, optionnel)</label>
+            <input id="pmin" name="pmin" type="number" min="0" [(ngModel)]="promoMin" />
+          </div>
+          <div class="full">
+            <button class="btn btn--dark btn--sm" type="submit">Créer la promo</button>
+          </div>
+        </form>
+
+        <div class="table-scroll">
+          <table class="admin-table" style="max-width: 760px">
+            <thead>
+              <tr><th>Code</th><th>Remise</th><th>Min. achat</th><th>État</th><th></th></tr>
+            </thead>
+            <tbody>
+              @for (p of promos(); track p.id) {
+                <tr>
+                  <td style="font-family: var(--font-label)">{{ p.code }}</td>
+                  <td>{{ p.type === 'percent' ? '-' + p.value + ' %' : '-' + (p.value | fcfa) }}</td>
+                  <td>{{ p.min_subtotal > 0 ? (p.min_subtotal | fcfa) : '—' }}</td>
+                  <td>
+                    <span class="badge-status" [class.badge-status--paye]="p.active" [class.badge-status--annulee]="!p.active">
+                      {{ p.active ? 'Active' : 'Désactivée' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button class="btn btn--ghost btn--sm" (click)="togglePromo(p)">
+                      {{ p.active ? 'Désactiver' : 'Réactiver' }}
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5" style="text-align: center; opacity: 0.5; padding: 30px">Aucune promo.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p style="opacity: 0.6; margin-bottom: 18px; max-width: 62ch">
+          Journal des e-mails et SMS. Statut <strong>logged</strong> = archivé dans <code>server/outbox/</code>
+          (aucun fournisseur configuré) ; <strong>sent</strong> = réellement envoyé via SMTP.
+        </p>
+        <div class="table-scroll">
+          <table class="admin-table">
+            <thead>
+              <tr><th>Date</th><th>Canal</th><th>Commande</th><th>Destinataire</th><th>Sujet / message</th><th>Statut</th></tr>
+            </thead>
+            <tbody>
+              @for (n of notifs(); track n.id) {
+                <tr>
+                  <td style="white-space: nowrap">{{ n.created_at }}</td>
+                  <td>{{ n.channel === 'email' ? '📧' : '💬' }} {{ n.channel }}</td>
+                  <td style="font-family: var(--font-label)">{{ n.order_ref || '—' }}</td>
+                  <td>{{ n.recipient }}</td>
+                  <td style="max-width: 380px">{{ n.subject || (n.body | slice: 0 : 90) }}</td>
+                  <td>
+                    <span class="badge-status" [class.badge-status--paye]="n.status === 'sent'"
+                          [class.badge-status--annulee]="n.status === 'failed'">{{ n.status }}</span>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" style="text-align: center; opacity: 0.5; padding: 30px">Aucune notification.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
       }
     </main>
   `,
@@ -141,13 +227,21 @@ export class AdminPage {
   readonly paymentLabels = PAYMENT_LABELS;
   readonly statuses = Object.keys(STATUS_LABELS);
 
-  readonly tab = signal<'orders' | 'stock'>('orders');
+  readonly tab = signal<'orders' | 'stock' | 'promos' | 'notifs'>('orders');
   readonly orders = signal<AdminOrder[]>([]);
   readonly stock = signal<StockRow[]>([]);
   readonly stats = signal<AdminStats | null>(null);
+  readonly promos = signal<Promo[]>([]);
+  readonly notifs = signal<NotificationRow[]>([]);
   readonly error = signal<string | null>(null);
 
   pending: Record<number, number> = {};
+
+  // Formulaire nouvelle promo
+  promoCode = '';
+  promoType: 'percent' | 'amount' = 'percent';
+  promoValue: number | null = null;
+  promoMin: number | null = null;
 
   constructor() {
     this.refresh();
@@ -157,6 +251,33 @@ export class AdminPage {
     this.api.adminOrders().subscribe({ next: (o) => this.orders.set(o), error: (e) => this.fail(e) });
     this.api.adminStock().subscribe({ next: (s) => this.stock.set(s), error: (e) => this.fail(e) });
     this.api.adminStats().subscribe({ next: (s) => this.stats.set(s), error: (e) => this.fail(e) });
+    this.api.adminPromos().subscribe({ next: (p) => this.promos.set(p), error: (e) => this.fail(e) });
+    this.api.adminNotifications().subscribe({ next: (n) => this.notifs.set(n), error: (e) => this.fail(e) });
+  }
+
+  createPromo(): void {
+    if (!this.promoCode.trim() || !this.promoValue) return;
+    this.api.createPromo({
+      code: this.promoCode.trim(),
+      type: this.promoType,
+      value: Number(this.promoValue),
+      min_subtotal: this.promoMin ? Number(this.promoMin) : 0,
+    }).subscribe({
+      next: () => {
+        this.promoCode = '';
+        this.promoValue = null;
+        this.promoMin = null;
+        this.refresh();
+      },
+      error: (e) => this.fail(e),
+    });
+  }
+
+  togglePromo(promo: Promo): void {
+    this.api.togglePromo(promo.id, !promo.active).subscribe({
+      next: () => this.refresh(),
+      error: (e) => this.fail(e),
+    });
   }
 
   setStatus(order: AdminOrder, status: string): void {

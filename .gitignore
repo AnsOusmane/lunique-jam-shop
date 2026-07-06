@@ -6,3 +6,4 @@ dist/
 .angular/
 .env
 .DS_Store
+outbox/

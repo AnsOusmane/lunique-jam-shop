@@ -48,13 +48,46 @@ export interface OrderPayload {
   };
   items: { productId: number; size: string; qty: number }[];
   payment: PaymentMethod;
+  promoCode?: string;
 }
 
 export interface OrderResult {
   ref: string;
   subtotal: number;
+  discount: number;
   deliveryFee: number;
   total: number;
+}
+
+export interface Customer {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  address: string | null;
+  city: string | null;
+  zone: string | null;
+}
+
+export interface Promo {
+  id: number;
+  code: string;
+  type: 'percent' | 'amount';
+  value: number;
+  min_subtotal: number;
+  expires_at: string | null;
+  active: number;
+}
+
+export interface NotificationRow {
+  id: number;
+  order_ref: string | null;
+  channel: 'email' | 'sms';
+  recipient: string;
+  subject: string | null;
+  body: string;
+  status: 'sent' | 'logged' | 'failed';
+  created_at: string;
 }
 
 export interface TrackedOrder {
@@ -67,6 +100,8 @@ export interface TrackedOrder {
   city: string;
   delivery_fee: number;
   subtotal: number;
+  discount: number;
+  promo_code: string | null;
   total: number;
   created_at: string;
   items: { name: string; size: string; qty: number; price: number }[];

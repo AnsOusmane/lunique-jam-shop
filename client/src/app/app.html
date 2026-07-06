@@ -8,6 +8,11 @@
   <nav class="shop-header__nav" aria-label="Navigation boutique">
     <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Boutique</a>
     <a routerLink="/suivi" routerLinkActive="active">Suivi</a>
+    @if (account.customer(); as c) {
+      <a routerLink="/compte" routerLinkActive="active">{{ firstName(c.name) }}</a>
+    } @else {
+      <a routerLink="/compte/connexion" routerLinkActive="active">Compte</a>
+    }
     <a class="cart-btn" routerLink="/panier" aria-label="Voir le panier">
       Panier
       @if (cart.count() > 0) {
@@ -34,6 +39,9 @@
       <a routerLink="/">Boutique</a>
       <a routerLink="/panier">Panier</a>
       <a routerLink="/suivi">Suivi de commande</a>
+      <a routerLink="/compte">Mon compte</a>
+      <a routerLink="/infos">Livraison & retours</a>
+      <a routerLink="/infos" fragment="tailles">Guide des tailles</a>
       <a href="mailto:hello@luniquejam.com">hello&#64;luniquejam.com</a>
     </nav>
   </div>
