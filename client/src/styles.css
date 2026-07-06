@@ -6,6 +6,7 @@
 :root {
   --ink: #0B0B0A;
   --ink-soft: #161614;
+  --bg: #FFFFFF;          /* fond général du site */
   --bone: #F7F4EC;
   --bone-dim: #EDE8DC;
   --emerald: #0E5A41;
@@ -31,7 +32,7 @@ body {
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.6;
-  background: var(--bone);
+  background: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
@@ -104,7 +105,7 @@ body::after {
   gap: 16px;
   padding: 0 var(--pad);
   height: 72px;
-  background: rgba(247, 244, 236, 0.88);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(11, 11, 10, 0.1);
 }
