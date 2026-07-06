@@ -7,6 +7,7 @@
   </a>
   <nav class="shop-header__nav" aria-label="Navigation boutique">
     <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Boutique</a>
+    <a href="https://ansousmane.github.io/lunique-jam/">La marque</a>
     <a routerLink="/suivi" routerLinkActive="active">Suivi</a>
     @if (account.customer(); as c) {
       <a routerLink="/compte" routerLinkActive="active">{{ firstName(c.name) }}</a>
@@ -37,6 +38,7 @@
     </div>
     <nav aria-label="Liens boutique">
       <a routerLink="/">Boutique</a>
+      <a href="https://ansousmane.github.io/lunique-jam/">La marque — manifesto & lookbook</a>
       <a routerLink="/panier">Panier</a>
       <a routerLink="/suivi">Suivi de commande</a>
       <a routerLink="/compte">Mon compte</a>
