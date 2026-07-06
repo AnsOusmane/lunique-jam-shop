@@ -59,6 +59,21 @@ cd client && npm run build     # génère client/dist
 cd ../server && npm start      # sert l'API et le front sur :3000
 ```
 
+## Déploiement (Railway recommandé)
+
+Le `Dockerfile` à la racine construit le client Angular puis lance Express qui sert tout.
+
+1. [railway.com](https://railway.com) → **Login with GitHub** → New Project → **Deploy from GitHub repo** → `lunique-jam-shop`
+2. Dans le service : **Settings → Volumes → Add Volume**, mount path `/data`
+3. **Variables** :
+   - `DATA_DIR=/data` (base SQLite + outbox sur le volume persistant)
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (Brevo)
+   - `JWT_SECRET` (longue chaîne aléatoire), `ADMIN_PASSWORD` (avant le premier démarrage)
+   - `PUBLIC_URL=https://<ton-domaine>` (liens dans les e-mails + CORS)
+4. **Settings → Networking → Generate Domain** → l'URL publique est prête (HTTPS inclus)
+
+Chaque `git push` sur `main` redéploie automatiquement.
+
 ## Structure
 
 ```

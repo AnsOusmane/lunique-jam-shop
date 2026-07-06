@@ -5,8 +5,11 @@ import { fileURLToPath } from 'node:url';
 import db from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUTBOX = path.join(__dirname, '..', 'outbox');
+const OUTBOX = path.join(process.env.DATA_DIR || path.join(__dirname, '..'), 'outbox');
 fs.mkdirSync(OUTBOX, { recursive: true });
+
+/** URL publique du site, utilisée dans les liens des e-mails/SMS. */
+const PUBLIC_URL = (process.env.PUBLIC_URL || 'http://localhost:4200').replace(/\/$/, '');
 
 /**
  * E-mail : SMTP réel si SMTP_HOST est défini (Brevo, Gmail, Resend SMTP…),
@@ -95,7 +98,7 @@ Total : ${F(order.total)}
 
 ${PAY_INSTRUCTIONS[order.payment_method] || ''}
 
-Suis ta commande à tout moment : http://localhost:4200/suivi?ref=${order.ref}
+Suis ta commande à tout moment : ${PUBLIC_URL}/suivi?ref=${order.ref}
 (garde ta référence et ton numéro de téléphone sous la main)
 
 Clean fits, clean heart.
@@ -123,7 +126,7 @@ export function statusUpdateMessages(order) {
   return {
     email: {
       subject: `Commande ${order.ref} : ${order.status === 'annulee' ? 'annulée' : 'mise à jour'} — Lunique Jam`,
-      text: `Salut ${order.customer_name},\n\n${msg}\n\nRéférence : ${order.ref}\nSuivi : http://localhost:4200/suivi?ref=${order.ref}\n\n— Lunique Jam`,
+      text: `Salut ${order.customer_name},\n\n${msg}\n\nRéférence : ${order.ref}\nSuivi : ${PUBLIC_URL}/suivi?ref=${order.ref}\n\n— Lunique Jam`,
     },
     sms: `Lunique Jam ${order.ref} : ${msg}`,
   };

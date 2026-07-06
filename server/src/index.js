@@ -17,9 +17,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Derrière le proxy de l'hébergeur (Railway/Render), nécessaire pour le rate-limiting par IP.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+
 // CSP désactivée : l'app charge Google Fonts et utilise des styles inline Angular.
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: [/^http:\/\/localhost:\d+$/] }));
+app.use(cors({
+  origin: [/^http:\/\/localhost:\d+$/, process.env.PUBLIC_URL].filter(Boolean),
+}));
 app.use(express.json({ limit: '100kb' }));
 
 const orderLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });

@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.angular
+server/outbox
+server/*.db
+server/*.db-shm
+server/*.db-wal
+server/.env
+.git
+README.md

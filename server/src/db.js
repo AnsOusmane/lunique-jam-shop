@@ -4,7 +4,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const db = new Database(path.join(__dirname, '..', 'luniquejam.db'));
+// En production (Railway/Render…), DATA_DIR pointe vers le volume persistant.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+const db = new Database(path.join(DATA_DIR, 'luniquejam.db'));
 
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
