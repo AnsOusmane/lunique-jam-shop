@@ -59,6 +59,23 @@ cd client && npm run build     # génère client/dist
 cd ../server && npm start      # sert l'API et le front sur :3000
 ```
 
+## Branches & mise en production
+
+- **`main`** → production. Chaque push redéploie Railway. On ne code jamais dessus.
+- **`dev`** → travail quotidien. Optionnel : branches `feat/<nom>` fusionnées dans `dev`.
+
+```bash
+# Coder (sur dev)
+git checkout dev
+git add . && git commit -m "…" && git push
+
+# Mettre en production (quand dev est testé)
+git checkout main
+git merge dev
+git push          # → déploiement Railway automatique
+git checkout dev  # on repart sur dev
+```
+
 ## Déploiement (Railway recommandé)
 
 Le `Dockerfile` à la racine construit le client Angular puis lance Express qui sert tout.
