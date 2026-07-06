@@ -1,11 +1,13 @@
 import Database from 'better-sqlite3';
 import argon2 from 'argon2';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // En production (Railway/Render…), DATA_DIR pointe vers le volume persistant.
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new Database(path.join(DATA_DIR, 'luniquejam.db'));
 
 db.pragma('journal_mode = WAL');
