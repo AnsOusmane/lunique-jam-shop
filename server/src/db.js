@@ -6,8 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // En production (Railway/Render…), DATA_DIR pointe vers le volume persistant.
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+export const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+export const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 const db = new Database(path.join(DATA_DIR, 'luniquejam.db'));
 
 db.pragma('journal_mode = WAL');
@@ -36,6 +38,15 @@ db.exec(`
     size TEXT NOT NULL,
     stock INTEGER NOT NULL DEFAULT 0,
     UNIQUE(product_id, size)
+  );
+
+  CREATE TABLE IF NOT EXISTS product_media (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,               -- image | video
+    filename TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS orders (

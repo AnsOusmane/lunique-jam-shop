@@ -46,7 +46,11 @@ const CATEGORIES = [
                 } @else if (p.badge) {
                   <span class="pcard__badge">{{ p.badge }}</span>
                 }
-                <lj-art [art]="p.art" [garment]="p.garment" [garmColor]="p.garm_color" [markColor]="p.mark_color" />
+                @if (coverImage(p); as cover) {
+                  <img [src]="cover.url" [alt]="p.name" class="pcard__cover" />
+                } @else {
+                  <lj-art [art]="p.art" [garment]="p.garment" [garmColor]="p.garm_color" [markColor]="p.mark_color" />
+                }
                 <div class="pcard__row">
                   <h3>{{ p.name }}</h3>
                   <span class="pcard__price">{{ p.price | fcfa }}</span>
@@ -81,6 +85,10 @@ export class ShopPage {
 
   soldOut(p: Product): boolean {
     return p.variants.every((v) => v.stock <= 0);
+  }
+
+  coverImage(p: Product) {
+    return p.media.find((m) => m.type === 'image');
   }
 
   sizesLabel(p: Product): string {

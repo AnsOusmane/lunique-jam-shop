@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  AdminOrder, AdminStats, AdminUser, Customer, NotificationRow, OrderPayload, OrderResult,
+  AdminOrder, AdminStats, AdminUser, Customer, Media, NotificationRow, OrderPayload, OrderResult,
   Product, ProductInput, Promo, StockRow, TrackedOrder, Variant,
 } from '../models';
 
@@ -115,6 +115,17 @@ export class ApiService {
 
   deleteVariant(variantId: number): Observable<{ ok: boolean }> {
     return this.http.delete<{ ok: boolean }>(`/api/admin/variants/${variantId}`);
+  }
+
+  uploadMedia(productId: number, file: File): Observable<Media> {
+    const kind = file.type.startsWith('video/') ? 'video' : 'image';
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<Media>(`/api/admin/products/${productId}/media/${kind}`, form);
+  }
+
+  deleteMedia(mediaId: number): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`/api/admin/media/${mediaId}`);
   }
 
   /* ---- Comptes admin ---- */

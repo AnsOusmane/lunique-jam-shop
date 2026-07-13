@@ -21,7 +21,33 @@ import { FcfaPipe } from '../fcfa.pipe';
 
       @if (product(); as p) {
         <div class="product-layout" style="margin-top: 26px">
-          <lj-art [art]="p.art" [garment]="p.garment" [garmColor]="p.garm_color" [markColor]="p.mark_color" />
+          @if (p.media.length > 0) {
+            <div class="product-gallery">
+              @if (activeMedia(); as m) {
+                @if (m.type === 'image') {
+                  <img [src]="m.url" [alt]="p.name" class="product-gallery__main" />
+                } @else {
+                  <video [src]="m.url" controls class="product-gallery__main"></video>
+                }
+              }
+              @if (p.media.length > 1) {
+                <div class="product-gallery__thumbs">
+                  @for (m of p.media; track m.id) {
+                    <button type="button" class="product-gallery__thumb" [class.active]="activeMediaId() === m.id"
+                            (click)="activeMediaId.set(m.id)" [attr.aria-label]="'Voir média ' + $index + 1">
+                      @if (m.type === 'image') {
+                        <img [src]="m.url" alt="" />
+                      } @else {
+                        <video [src]="m.url" muted></video>
+                      }
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <lj-art [art]="p.art" [garment]="p.garment" [garmColor]="p.garm_color" [markColor]="p.mark_color" />
+          }
 
           <div class="product-info">
             @if (p.badge) { <span class="label" style="color: var(--gold)">{{ p.badge }}</span> }
@@ -95,6 +121,14 @@ export class ProductPage {
   readonly size = signal<string | null>(null);
   readonly qty = signal(1);
   readonly added = signal(false);
+
+  readonly activeMediaId = signal<number | null>(null);
+  readonly activeMedia = computed(() => {
+    const p = this.product();
+    if (!p || p.media.length === 0) return null;
+    const id = this.activeMediaId();
+    return p.media.find((m) => m.id === id) ?? p.media[0];
+  });
 
   readonly selectedVariant = computed(() => {
     const p = this.product();

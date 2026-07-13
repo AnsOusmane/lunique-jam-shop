@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api.service';
 import { FcfaPipe } from '../fcfa.pipe';
-import { ART_STUDIOS, GARMENTS, Product } from '../models';
+import { ART_STUDIOS, GARMENTS, Media, Product } from '../models';
 
 interface SizeRow {
   size: string;
@@ -108,6 +108,33 @@ const EMPTY_FORM = {
           <button type="button" class="btn btn--ghost btn--sm" style="margin-top: 10px" (click)="addSizeRow()">+ Taille</button>
         </div>
 
+        <div class="full">
+          <label style="display: block; margin-bottom: 8px">Photos &amp; vidéos</label>
+          @if (editingId() === null) {
+            <p style="opacity: 0.6; font-size: 13px">Enregistre la pièce d'abord — tu pourras ajouter des photos et vidéos juste après.</p>
+          } @else {
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px">
+              @for (m of editingMedia(); track m.id) {
+                <div style="position: relative; width: 110px">
+                  @if (m.type === 'image') {
+                    <img [src]="m.url" alt="" style="width: 110px; height: 110px; object-fit: cover; border-radius: 4px; display: block" />
+                  } @else {
+                    <video [src]="m.url" muted style="width: 110px; height: 110px; object-fit: cover; border-radius: 4px; display: block"></video>
+                  }
+                  <button type="button" (click)="removeMedia(m.id)" aria-label="Supprimer ce média"
+                          style="position: absolute; top: 4px; right: 4px; background: var(--ink); color: var(--bone); border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer">✕</button>
+                </div>
+              } @empty {
+                <p style="opacity: 0.5; font-size: 13px">Aucun média pour l'instant.</p>
+              }
+            </div>
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,video/quicktime"
+                   (change)="onMediaSelected($event)" [disabled]="uploadingMedia()" />
+            <p style="opacity: 0.5; font-size: 12px; margin-top: 6px">Images : jpeg/png/webp/avif, 8 Mo max · Vidéos : mp4/webm/mov, 50 Mo max.</p>
+            @if (uploadingMedia()) { <p style="font-size: 13px; margin-top: 6px">Envoi en cours…</p> }
+          }
+        </div>
+
         <div class="full" style="display: flex; gap: 12px">
           <button class="btn btn--dark btn--sm" type="submit" [disabled]="saving()">
             @if (saving()) { Enregistrement… } @else if (editingId() !== null) { Enregistrer } @else { Créer la pièce }
@@ -126,9 +153,18 @@ const EMPTY_FORM = {
           @for (p of products(); track p.id) {
             <tr>
               <td>
-                <strong>{{ p.name }}</strong><br />
-                <small style="opacity: 0.6">{{ p.slug }} · {{ p.color }}</small>
-                @if (p.badge) { <br /><small class="badge-status" style="margin-top: 4px; display: inline-block">{{ p.badge }}</small> }
+                <div style="display: flex; gap: 10px; align-items: center">
+                  @if (coverImage(p); as cover) {
+                    <img [src]="cover.url" alt="" style="width: 44px; height: 44px; object-fit: cover; border-radius: 4px; flex-shrink: 0" />
+                  } @else {
+                    <div class="art-swatch ljart--{{ p.art }}" style="width: 44px; height: 44px; flex-shrink: 0"></div>
+                  }
+                  <div>
+                    <strong>{{ p.name }}</strong><br />
+                    <small style="opacity: 0.6">{{ p.slug }} · {{ p.color }}</small>
+                    @if (p.badge) { <br /><small class="badge-status" style="margin-top: 4px; display: inline-block">{{ p.badge }}</small> }
+                  </div>
+                </div>
               </td>
               <td>{{ p.category }}</td>
               <td style="font-family: var(--font-label); white-space: nowrap">{{ p.price | fcfa }}</td>
@@ -170,6 +206,8 @@ export class AdminProductsComponent {
   readonly categories = signal<string[]>([]);
   readonly formOpen = signal(false);
   readonly editingId = signal<number | null>(null);
+  readonly editingMedia = signal<Media[]>([]);
+  readonly uploadingMedia = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly ok = signal<string | null>(null);
@@ -202,6 +240,7 @@ export class AdminProductsComponent {
 
   openCreate(): void {
     this.editingId.set(null);
+    this.editingMedia.set([]);
     this.form = { ...EMPTY_FORM };
     this.sizeRows = [{ size: '', stock: 0 }];
     this.slugTouched = false;
@@ -211,6 +250,7 @@ export class AdminProductsComponent {
 
   openEdit(p: Product): void {
     this.editingId.set(p.id);
+    this.editingMedia.set(p.media);
     this.form = {
       slug: p.slug, name: p.name, price: p.price, color: p.color, description: p.description,
       category: p.category, badge: p.badge || '', garment: p.garment, art: p.art,
@@ -220,6 +260,44 @@ export class AdminProductsComponent {
     this.slugTouched = true;
     this.formOpen.set(true);
     this.error.set(null);
+  }
+
+  coverImage(p: Product): Media | undefined {
+    return p.media.find((m) => m.type === 'image');
+  }
+
+  onMediaSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const productId = this.editingId();
+    if (!file || productId === null) return;
+
+    this.uploadingMedia.set(true);
+    this.error.set(null);
+    this.api.uploadMedia(productId, file).subscribe({
+      next: (media) => {
+        this.uploadingMedia.set(false);
+        this.editingMedia.update((list) => [...list, media]);
+        input.value = '';
+        this.refresh();
+      },
+      error: (e) => {
+        this.uploadingMedia.set(false);
+        input.value = '';
+        this.fail(e);
+      },
+    });
+  }
+
+  removeMedia(mediaId: number): void {
+    if (!confirm('Supprimer ce média ?')) return;
+    this.api.deleteMedia(mediaId).subscribe({
+      next: () => {
+        this.editingMedia.update((list) => list.filter((m) => m.id !== mediaId));
+        this.refresh();
+      },
+      error: (e) => this.fail(e),
+    });
   }
 
   closeForm(): void {

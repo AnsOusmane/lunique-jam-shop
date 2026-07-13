@@ -2,10 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import db from './db.js';
+import db, { UPLOADS_DIR } from './db.js';
 import {
   login, requireAdmin, hashPassword,
   registerCustomer, loginCustomer, customerToken, customerById,
@@ -26,6 +28,7 @@ app.use(cors({
   origin: [/^http:\/\/localhost:\d+$/, process.env.PUBLIC_URL].filter(Boolean),
 }));
 app.use(express.json({ limit: '100kb' }));
+app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
 
 const orderLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
@@ -37,7 +40,9 @@ const STATUSES = ['recue', 'confirmee', 'preparation', 'expediee', 'livree', 'an
 
 function productWithVariants(row) {
   const variants = db.prepare('SELECT id, size, stock FROM variants WHERE product_id = ? ORDER BY id').all(row.id);
-  return { ...row, badge: row.badge || null, variants };
+  const mediaRows = db.prepare('SELECT id, type, filename FROM product_media WHERE product_id = ? ORDER BY position, id').all(row.id);
+  const media = mediaRows.map((m) => ({ id: m.id, type: m.type, url: `/uploads/${m.filename}` }));
+  return { ...row, badge: row.badge || null, variants, media };
 }
 
 function makeRef() {
@@ -463,8 +468,10 @@ app.patch('/api/admin/products/:id', requireAdmin, (req, res) => {
 });
 
 app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
+  const mediaRows = db.prepare('SELECT filename FROM product_media WHERE product_id = ?').all(req.params.id);
   const { changes } = db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
   if (!changes) return res.status(404).json({ error: 'Pièce introuvable' });
+  for (const m of mediaRows) fs.unlink(path.join(UPLOADS_DIR, m.filename), () => {});
   res.json({ ok: true });
 });
 
@@ -487,6 +494,65 @@ app.delete('/api/admin/variants/:id', requireAdmin, (req, res) => {
   const { changes } = db.prepare('DELETE FROM variants WHERE id = ?').run(req.params.id);
   if (!changes) return res.status(404).json({ error: 'Taille introuvable' });
   res.json({ ok: true });
+});
+
+/* ============ Admin : photos & vidéos produit ============ */
+const IMAGE_EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/avif': '.avif' };
+const VIDEO_EXT = { 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' };
+
+function makeUpload(allowedMimes, maxBytes) {
+  return multer({
+    storage: multer.diskStorage({
+      destination: UPLOADS_DIR,
+      filename: (_req, file, cb) => cb(null, crypto.randomUUID() + allowedMimes[file.mimetype]),
+    }),
+    limits: { fileSize: maxBytes, files: 1 },
+    fileFilter: (_req, file, cb) => cb(null, Object.prototype.hasOwnProperty.call(allowedMimes, file.mimetype)),
+  });
+}
+
+const uploadImage = makeUpload(IMAGE_EXT, 8 * 1024 * 1024);
+const uploadVideo = makeUpload(VIDEO_EXT, 50 * 1024 * 1024);
+
+app.post('/api/admin/products/:id/media/image', requireAdmin, uploadImage.single('file'), (req, res) => {
+  const product = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
+  if (!product) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    return res.status(404).json({ error: 'Pièce introuvable' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'Image invalide (jpeg, png, webp, avif — 8 Mo max)' });
+  const { lastInsertRowid } = db.prepare('INSERT INTO product_media (product_id, type, filename) VALUES (?, ?, ?)')
+    .run(product.id, 'image', req.file.filename);
+  res.status(201).json({ id: lastInsertRowid, type: 'image', url: `/uploads/${req.file.filename}` });
+});
+
+app.post('/api/admin/products/:id/media/video', requireAdmin, uploadVideo.single('file'), (req, res) => {
+  const product = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
+  if (!product) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    return res.status(404).json({ error: 'Pièce introuvable' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'Vidéo invalide (mp4, webm, mov — 50 Mo max)' });
+  const { lastInsertRowid } = db.prepare('INSERT INTO product_media (product_id, type, filename) VALUES (?, ?, ?)')
+    .run(product.id, 'video', req.file.filename);
+  res.status(201).json({ id: lastInsertRowid, type: 'video', url: `/uploads/${req.file.filename}` });
+});
+
+app.delete('/api/admin/media/:id', requireAdmin, (req, res) => {
+  const row = db.prepare('SELECT filename FROM product_media WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Média introuvable' });
+  db.prepare('DELETE FROM product_media WHERE id = ?').run(req.params.id);
+  fs.unlink(path.join(UPLOADS_DIR, row.filename), () => {});
+  res.json({ ok: true });
+});
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Fichier trop volumineux' : 'Erreur d\'upload';
+    return res.status(400).json({ error: msg });
+  }
+  next(err);
 });
 
 /* ============ Admin : comptes équipe ============ */
@@ -585,7 +651,7 @@ const clientDist = path.join(__dirname, '..', '..', 'client', 'dist', 'client', 
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
   app.use((req, res, next) => {
-    if (req.method !== 'GET' || req.path.startsWith('/api')) return next();
+    if (req.method !== 'GET' || req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
     res.sendFile(path.join(clientDist, 'index.html'));
   });
   console.log('✓ Front servi depuis client/dist (mode production)');

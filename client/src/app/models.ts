@@ -4,6 +4,12 @@ export interface Variant {
   stock: number;
 }
 
+export interface Media {
+  id: number;
+  type: 'image' | 'video';
+  url: string;
+}
+
 export interface Product {
   id: number;
   slug: string;
@@ -19,6 +25,7 @@ export interface Product {
   mark_color: string;
   active?: number;
   variants: Variant[];
+  media: Media[];
 }
 
 export interface ProductInput {

@@ -223,6 +223,21 @@ body::after {
 }
 .art-swatch--active { border-color: var(--ink); }
 
+.product-gallery__main {
+  width: 100%; aspect-ratio: 4 / 5; object-fit: cover;
+  border: 1px solid rgba(11, 11, 10, 0.08); border-radius: var(--radius);
+  background: var(--ink);
+}
+.product-gallery__thumbs { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.product-gallery__thumb {
+  width: 64px; height: 64px; padding: 0; cursor: pointer;
+  border: 2px solid transparent; border-radius: 4px; overflow: hidden;
+}
+.product-gallery__thumb.active { border-color: var(--emerald); }
+.product-gallery__thumb img, .product-gallery__thumb video {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+
 /* ---------- Catalogue ---------- */
 .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: clamp(24px, 3.5vw, 44px); }
 .chip {
@@ -241,6 +256,12 @@ body::after {
   gap: clamp(20px, 3vw, 44px) clamp(16px, 2.5vw, 32px);
 }
 .pcard { position: relative; display: block; }
+.pcard__cover {
+  width: 100%; aspect-ratio: 4 / 5; object-fit: cover;
+  border: 1px solid rgba(11, 11, 10, 0.08); border-radius: var(--radius);
+  transition: transform 0.4s ease;
+}
+.pcard:hover .pcard__cover { transform: scale(1.03); }
 .pcard:hover .ljart__garment { transform: translateY(-3%) scale(1.05) rotate(-2deg); }
 .pcard:hover .ljart__mark { transform: translateY(-7%) scale(1.05) rotate(-2deg); }
 .pcard__badge {

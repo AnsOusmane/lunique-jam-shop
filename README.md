@@ -33,6 +33,11 @@ Stack : **Angular 20** (standalone components, signals) + **Express / Node 22** 
 - Stats : commandes, chiffre d'affaires, à traiter, stock critique
 - Gestion des commandes (statuts, paiement), stocks par variante, promos, notifications
 - Annulation d'une commande = stock restitué automatiquement (réactivation re-vérifie le stock)
+- Produits : créer/éditer/désactiver/supprimer une pièce, gérer ses tailles, uploader des
+  photos (jpeg/png/webp/avif, 8 Mo max) et vidéos (mp4/webm/mov, 50 Mo max) — stockées sur
+  disque sous `DATA_DIR/uploads`, servies via `/uploads/…`
+- Comptes admin : inviter/retirer un membre de l'équipe (tous ont un accès complet, pas de
+  rôles distincts pour l'instant)
 
 **API Express**
 - Commandes transactionnelles : le stock est vérifié et décrémenté atomiquement
@@ -86,7 +91,7 @@ Le `Dockerfile` à la racine construit le client Angular puis lance Express qui 
 1. [railway.com](https://railway.com) → **Login with GitHub** → New Project → **Deploy from GitHub repo** → `lunique-jam-shop`
 2. Dans le service : **Settings → Volumes → Add Volume**, mount path `/data`
 3. **Variables** :
-   - `DATA_DIR=/data` (base SQLite + outbox sur le volume persistant)
+   - `DATA_DIR=/data` (base SQLite + outbox + photos/vidéos produits sur le volume persistant)
    - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (Brevo)
    - `JWT_SECRET` (longue chaîne aléatoire), `ADMIN_PASSWORD` (resynchronisé à chaque démarrage)
    - `PUBLIC_URL=https://<ton-domaine>` (liens dans les e-mails + CORS)
