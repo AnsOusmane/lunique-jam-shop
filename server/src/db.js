@@ -187,17 +187,27 @@ if (productCount === 0) {
   console.log('✓ Produits GENESIS seedés');
 }
 
-const adminCount = db.prepare('SELECT COUNT(*) AS n FROM admins').get().n;
-if (adminCount === 0) {
-  const hash = await argon2.hash(process.env.ADMIN_PASSWORD || 'LuniqueJam#2026', {
-    type: argon2.argon2id,
-    memoryCost: 19456, // 19 MiB — reco OWASP
-    timeCost: 2,
-    parallelism: 1,
-  });
+const ARGON_OPTS = {
+  type: argon2.argon2id,
+  memoryCost: 19456, // 19 MiB — reco OWASP
+  timeCost: 2,
+  parallelism: 1,
+};
+
+const adminRow = db.prepare('SELECT id, password_hash FROM admins ORDER BY id LIMIT 1').get();
+if (!adminRow) {
+  const hash = await argon2.hash(process.env.ADMIN_PASSWORD || 'LuniqueJam#2026', ARGON_OPTS);
   db.prepare('INSERT INTO admins (email, password_hash, name) VALUES (?, ?, ?)')
     .run('admin@luniquejam.com', hash, 'Ansoumana');
   console.log('✓ Compte admin créé (admin@luniquejam.com) — hash Argon2id');
+} else if (process.env.ADMIN_PASSWORD) {
+  // ADMIN_PASSWORD fait autorité : on resynchronise le hash si le mot de passe a changé
+  const same = await argon2.verify(adminRow.password_hash, process.env.ADMIN_PASSWORD).catch(() => false);
+  if (!same) {
+    const hash = await argon2.hash(process.env.ADMIN_PASSWORD, ARGON_OPTS);
+    db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(hash, adminRow.id);
+    console.log('✓ Mot de passe admin resynchronisé depuis ADMIN_PASSWORD');
+  }
 }
 
 const promoCount = db.prepare('SELECT COUNT(*) AS n FROM promos').get().n;

@@ -49,8 +49,11 @@ cd client && npm install && npm start
 ```
 
 - Boutique : http://localhost:4200
-- Admin : http://localhost:4200/admin/login — `admin@luniquejam.com` / `LuniqueJam#2026`
-  (changer via la variable d'env `ADMIN_PASSWORD` avant le premier lancement, et `JWT_SECRET` en prod)
+- Admin : http://localhost:4200/admin/login — `admin@luniquejam.com`, mot de passe défini par
+  la variable d'env `ADMIN_PASSWORD`. À chaque démarrage, le hash en base est resynchronisé
+  sur cette variable : pour changer le mot de passe, il suffit de la modifier et de redémarrer.
+  Sans variable définie, un mot de passe de dev par défaut est utilisé au premier seed
+  (voir `server/src/db.js`) — à ne jamais laisser en prod, tout comme `JWT_SECRET`.
 
 ## Production (un seul process)
 
@@ -85,7 +88,7 @@ Le `Dockerfile` à la racine construit le client Angular puis lance Express qui 
 3. **Variables** :
    - `DATA_DIR=/data` (base SQLite + outbox sur le volume persistant)
    - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (Brevo)
-   - `JWT_SECRET` (longue chaîne aléatoire), `ADMIN_PASSWORD` (avant le premier démarrage)
+   - `JWT_SECRET` (longue chaîne aléatoire), `ADMIN_PASSWORD` (resynchronisé à chaque démarrage)
    - `PUBLIC_URL=https://<ton-domaine>` (liens dans les e-mails + CORS)
 4. **Settings → Networking → Generate Domain** → l'URL publique est prête (HTTPS inclus)
 
