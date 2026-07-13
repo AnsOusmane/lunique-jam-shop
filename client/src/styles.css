@@ -217,6 +217,12 @@ body::after {
 .ljart--p7 { background: radial-gradient(120% 90% at 30% 8%, #EFEAE0 0%, #D6CDBB 60%, #B3A78F 100%); }
 .ljart--p8 { background: radial-gradient(120% 95% at 68% 10%, #23231F 0%, #121210 55%, #0B0B0A 100%); }
 
+.art-swatch {
+  width: 36px; height: 36px; border-radius: 4px; cursor: pointer;
+  border: 2px solid transparent; padding: 0;
+}
+.art-swatch--active { border-color: var(--ink); }
+
 /* ---------- Catalogue ---------- */
 .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: clamp(24px, 3.5vw, 44px); }
 .chip {

@@ -6,11 +6,13 @@ import { ApiService } from '../services/api.service';
 import { AuthService } from '../services/auth.service';
 import { FcfaPipe } from '../fcfa.pipe';
 import { AdminOrder, AdminStats, NotificationRow, PAYMENT_LABELS, Promo, STATUS_LABELS, StockRow } from '../models';
+import { AdminProductsComponent } from './admin-products.component';
+import { AdminAccountsComponent } from './admin-accounts.component';
 
 @Component({
   selector: 'app-admin',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, FcfaPipe, SlicePipe],
+  imports: [FormsModule, FcfaPipe, SlicePipe, AdminProductsComponent, AdminAccountsComponent],
   template: `
     <main class="page">
       <header class="page-head" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px">
@@ -44,9 +46,11 @@ import { AdminOrder, AdminStats, NotificationRow, PAYMENT_LABELS, Promo, STATUS_
 
       <div class="admin-tabs" role="tablist">
         <button class="chip" [class.active]="tab() === 'orders'" (click)="tab.set('orders')" role="tab">Commandes</button>
+        <button class="chip" [class.active]="tab() === 'products'" (click)="tab.set('products')" role="tab">Produits</button>
         <button class="chip" [class.active]="tab() === 'stock'" (click)="tab.set('stock')" role="tab">Stocks</button>
         <button class="chip" [class.active]="tab() === 'promos'" (click)="tab.set('promos')" role="tab">Promos</button>
         <button class="chip" [class.active]="tab() === 'notifs'" (click)="tab.set('notifs')" role="tab">Notifications</button>
+        <button class="chip" [class.active]="tab() === 'admins'" (click)="tab.set('admins')" role="tab">Comptes admin</button>
       </div>
 
       @if (error()) {
@@ -104,6 +108,8 @@ import { AdminOrder, AdminStats, NotificationRow, PAYMENT_LABELS, Promo, STATUS_
             </tbody>
           </table>
         </div>
+      } @else if (tab() === 'products') {
+        <app-admin-products />
       } @else if (tab() === 'stock') {
         <div class="table-scroll">
           <table class="admin-table" style="max-width: 640px">
@@ -185,7 +191,7 @@ import { AdminOrder, AdminStats, NotificationRow, PAYMENT_LABELS, Promo, STATUS_
             </tbody>
           </table>
         </div>
-      } @else {
+      } @else if (tab() === 'notifs') {
         <p style="opacity: 0.6; margin-bottom: 18px; max-width: 62ch">
           Journal des e-mails et SMS. Statut <strong>logged</strong> = archivé dans <code>server/outbox/</code>
           (aucun fournisseur configuré) ; <strong>sent</strong> = réellement envoyé via SMTP.
@@ -214,6 +220,8 @@ import { AdminOrder, AdminStats, NotificationRow, PAYMENT_LABELS, Promo, STATUS_
             </tbody>
           </table>
         </div>
+      } @else {
+        <app-admin-accounts />
       }
     </main>
   `,
@@ -227,7 +235,7 @@ export class AdminPage {
   readonly paymentLabels = PAYMENT_LABELS;
   readonly statuses = Object.keys(STATUS_LABELS);
 
-  readonly tab = signal<'orders' | 'stock' | 'promos' | 'notifs'>('orders');
+  readonly tab = signal<'orders' | 'products' | 'stock' | 'promos' | 'notifs' | 'admins'>('orders');
   readonly orders = signal<AdminOrder[]>([]);
   readonly stock = signal<StockRow[]>([]);
   readonly stats = signal<AdminStats | null>(null);

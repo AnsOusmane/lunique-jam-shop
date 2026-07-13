@@ -25,7 +25,7 @@ export async function login(email, password) {
     JWT_SECRET,
     { expiresIn: '12h' },
   );
-  return { token, admin: { email: admin.email, name: admin.name } };
+  return { token, admin: { id: admin.id, email: admin.email, name: admin.name } };
 }
 
 export function requireAdmin(req, res, next) {

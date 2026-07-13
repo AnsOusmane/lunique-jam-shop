@@ -17,7 +17,32 @@ export interface Product {
   garment: string;
   garm_color: string;
   mark_color: string;
+  active?: number;
   variants: Variant[];
+}
+
+export interface ProductInput {
+  slug: string;
+  name: string;
+  price: number;
+  color: string;
+  description: string;
+  category: string;
+  badge: string | null;
+  art: string;
+  garment: string;
+  garm_color: string;
+  mark_color: string;
+  sizes: Record<string, number>;
+}
+
+export const GARMENTS = ['tee', 'hoodie', 'cap', 'pants'] as const;
+export const ART_STUDIOS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'] as const;
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string;
 }
 
 export interface CartLine {

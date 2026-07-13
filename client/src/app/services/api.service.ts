@@ -2,8 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  AdminOrder, AdminStats, Customer, NotificationRow, OrderPayload, OrderResult,
-  Product, Promo, StockRow, TrackedOrder,
+  AdminOrder, AdminStats, AdminUser, Customer, NotificationRow, OrderPayload, OrderResult,
+  Product, ProductInput, Promo, StockRow, TrackedOrder, Variant,
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -27,8 +27,8 @@ export class ApiService {
     return this.http.get<TrackedOrder>(`/api/orders/${encodeURIComponent(ref.trim())}`, { params });
   }
 
-  login(email: string, password: string): Observable<{ token: string; admin: { email: string; name: string } }> {
-    return this.http.post<{ token: string; admin: { email: string; name: string } }>('/api/auth/login', { email, password });
+  login(email: string, password: string): Observable<{ token: string; admin: { id: number; email: string; name: string } }> {
+    return this.http.post<{ token: string; admin: { id: number; email: string; name: string } }>('/api/auth/login', { email, password });
   }
 
   adminOrders(): Observable<AdminOrder[]> {
@@ -89,5 +89,49 @@ export class ApiService {
 
   adminNotifications(): Observable<NotificationRow[]> {
     return this.http.get<NotificationRow[]>('/api/admin/notifications');
+  }
+
+  /* ---- Produits (admin) ---- */
+
+  adminProducts(): Observable<Product[]> {
+    return this.http.get<Product[]>('/api/admin/products');
+  }
+
+  createProduct(data: ProductInput): Observable<Product> {
+    return this.http.post<Product>('/api/admin/products', data);
+  }
+
+  updateProduct(id: number, patch: Partial<ProductInput> & { active?: boolean }): Observable<Product> {
+    return this.http.patch<Product>(`/api/admin/products/${id}`, patch);
+  }
+
+  deleteProduct(id: number): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`/api/admin/products/${id}`);
+  }
+
+  addVariant(productId: number, size: string, stock: number): Observable<Variant> {
+    return this.http.post<Variant>(`/api/admin/products/${productId}/variants`, { size, stock });
+  }
+
+  deleteVariant(variantId: number): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`/api/admin/variants/${variantId}`);
+  }
+
+  /* ---- Comptes admin ---- */
+
+  adminAdmins(): Observable<AdminUser[]> {
+    return this.http.get<AdminUser[]>('/api/admin/admins');
+  }
+
+  createAdmin(data: { name: string; email: string; password: string }): Observable<AdminUser> {
+    return this.http.post<AdminUser>('/api/admin/admins', data);
+  }
+
+  updateAdmin(id: number, patch: { name?: string; password?: string }): Observable<AdminUser> {
+    return this.http.patch<AdminUser>(`/api/admin/admins/${id}`, patch);
+  }
+
+  deleteAdmin(id: number): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`/api/admin/admins/${id}`);
   }
 }

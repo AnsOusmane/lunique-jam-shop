@@ -5,10 +5,12 @@ import { inject } from '@angular/core';
 
 const TOKEN_KEY = 'lj_admin_token';
 const NAME_KEY = 'lj_admin_name';
+const ID_KEY = 'lj_admin_id';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   readonly adminName = signal<string | null>(localStorage.getItem(NAME_KEY));
+  readonly adminId = signal<number | null>(Number(localStorage.getItem(ID_KEY)) || null);
 
   get token(): string | null {
     return localStorage.getItem(TOKEN_KEY);
@@ -18,16 +20,20 @@ export class AuthService {
     return !!this.token;
   }
 
-  store(token: string, name: string): void {
+  store(token: string, name: string, id: number): void {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(NAME_KEY, name);
+    localStorage.setItem(ID_KEY, String(id));
     this.adminName.set(name);
+    this.adminId.set(id);
   }
 
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(NAME_KEY);
+    localStorage.removeItem(ID_KEY);
     this.adminName.set(null);
+    this.adminId.set(null);
   }
 }
 

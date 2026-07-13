@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import db from './db.js';
 import {
-  login, requireAdmin,
+  login, requireAdmin, hashPassword,
   registerCustomer, loginCustomer, customerToken, customerById,
   requireCustomer, optionalCustomer,
 } from './auth.js';
@@ -339,6 +339,204 @@ app.patch('/api/admin/promos/:id', requireAdmin, (req, res) => {
   if (active !== 0 && active !== 1 && typeof active !== 'boolean') return res.status(400).json({ error: 'Champ active requis' });
   db.prepare('UPDATE promos SET active = ? WHERE id = ?').run(active ? 1 : 0, promo.id);
   res.json(db.prepare('SELECT * FROM promos WHERE id = ?').get(promo.id));
+});
+
+/* ============ Admin : produits ============ */
+const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const GARMENTS = ['tee', 'hoodie', 'cap', 'pants'];
+const ARTS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+app.get('/api/admin/products', requireAdmin, (_req, res) => {
+  const rows = db.prepare('SELECT * FROM products ORDER BY id DESC').all();
+  res.json(rows.map(productWithVariants));
+});
+
+app.post('/api/admin/products', requireAdmin, (req, res) => {
+  const b = req.body || {};
+  const slug = String(b.slug || '').toLowerCase().trim();
+  const name = String(b.name || '').trim();
+  const color = String(b.color || '').trim();
+  const description = String(b.description || '').trim();
+  const category = String(b.category || '').trim();
+  const badge = b.badge ? String(b.badge).trim() : null;
+  const garment = String(b.garment || '');
+  const art = String(b.art || '');
+  const garm_color = String(b.garm_color || '');
+  const mark_color = String(b.mark_color || '');
+  const price = Number(b.price);
+  const sizes = b.sizes && typeof b.sizes === 'object' ? b.sizes : null;
+
+  if (!SLUG_RE.test(slug)) return res.status(400).json({ error: 'Slug invalide (minuscules, chiffres, tirets)' });
+  if (name.length < 2 || name.length > 100) return res.status(400).json({ error: 'Nom invalide' });
+  if (!Number.isInteger(price) || price <= 0 || price > 1000000) return res.status(400).json({ error: 'Prix invalide' });
+  if (color.length < 2 || color.length > 60) return res.status(400).json({ error: 'Couleur invalide' });
+  if (description.length < 10 || description.length > 1000) return res.status(400).json({ error: 'Description trop courte' });
+  if (category.length < 2 || category.length > 40) return res.status(400).json({ error: 'Catégorie invalide' });
+  if (!GARMENTS.includes(garment)) return res.status(400).json({ error: 'Type de vêtement invalide' });
+  if (!ARTS.includes(art)) return res.status(400).json({ error: 'Fond visuel invalide' });
+  if (!HEX_RE.test(garm_color) || !HEX_RE.test(mark_color)) return res.status(400).json({ error: 'Couleur hexadécimale invalide' });
+  if (!sizes || Object.keys(sizes).length === 0) return res.status(400).json({ error: 'Au moins une taille avec son stock' });
+  for (const [size, stock] of Object.entries(sizes)) {
+    if (!String(size).trim() || !Number.isInteger(stock) || stock < 0 || stock > 9999) {
+      return res.status(400).json({ error: `Taille ou stock invalide (${size})` });
+    }
+  }
+
+  try {
+    const { lastInsertRowid } = db.prepare(`
+      INSERT INTO products (slug, name, price, color, description, category, badge, art, garment, garm_color, mark_color)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(slug, name, price, color, description, category, badge, art, garment, garm_color, mark_color);
+    const insertVariant = db.prepare('INSERT INTO variants (product_id, size, stock) VALUES (?, ?, ?)');
+    for (const [size, stock] of Object.entries(sizes)) insertVariant.run(lastInsertRowid, String(size).trim(), stock);
+    res.status(201).json(productWithVariants(db.prepare('SELECT * FROM products WHERE id = ?').get(lastInsertRowid)));
+  } catch {
+    res.status(409).json({ error: 'Ce slug existe déjà' });
+  }
+});
+
+app.patch('/api/admin/products/:id', requireAdmin, (req, res) => {
+  const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+  if (!product) return res.status(404).json({ error: 'Pièce introuvable' });
+  const b = req.body || {};
+  const next = { ...product };
+
+  if (b.slug !== undefined) {
+    const slug = String(b.slug).toLowerCase().trim();
+    if (!SLUG_RE.test(slug)) return res.status(400).json({ error: 'Slug invalide' });
+    next.slug = slug;
+  }
+  if (b.name !== undefined) {
+    const name = String(b.name).trim();
+    if (name.length < 2 || name.length > 100) return res.status(400).json({ error: 'Nom invalide' });
+    next.name = name;
+  }
+  if (b.price !== undefined) {
+    const price = Number(b.price);
+    if (!Number.isInteger(price) || price <= 0 || price > 1000000) return res.status(400).json({ error: 'Prix invalide' });
+    next.price = price;
+  }
+  if (b.color !== undefined) {
+    const color = String(b.color).trim();
+    if (color.length < 2 || color.length > 60) return res.status(400).json({ error: 'Couleur invalide' });
+    next.color = color;
+  }
+  if (b.description !== undefined) {
+    const description = String(b.description).trim();
+    if (description.length < 10 || description.length > 1000) return res.status(400).json({ error: 'Description trop courte' });
+    next.description = description;
+  }
+  if (b.category !== undefined) {
+    const category = String(b.category).trim();
+    if (category.length < 2 || category.length > 40) return res.status(400).json({ error: 'Catégorie invalide' });
+    next.category = category;
+  }
+  if (b.badge !== undefined) next.badge = b.badge ? String(b.badge).trim() : null;
+  if (b.garment !== undefined) {
+    if (!GARMENTS.includes(b.garment)) return res.status(400).json({ error: 'Type de vêtement invalide' });
+    next.garment = b.garment;
+  }
+  if (b.art !== undefined) {
+    if (!ARTS.includes(b.art)) return res.status(400).json({ error: 'Fond visuel invalide' });
+    next.art = b.art;
+  }
+  if (b.garm_color !== undefined) {
+    if (!HEX_RE.test(b.garm_color)) return res.status(400).json({ error: 'Couleur invalide' });
+    next.garm_color = b.garm_color;
+  }
+  if (b.mark_color !== undefined) {
+    if (!HEX_RE.test(b.mark_color)) return res.status(400).json({ error: 'Couleur invalide' });
+    next.mark_color = b.mark_color;
+  }
+  if (b.active !== undefined) next.active = b.active ? 1 : 0;
+
+  try {
+    db.prepare(`
+      UPDATE products SET slug=?, name=?, price=?, color=?, description=?, category=?, badge=?, art=?, garment=?, garm_color=?, mark_color=?, active=?
+      WHERE id=?
+    `).run(next.slug, next.name, next.price, next.color, next.description, next.category, next.badge, next.art, next.garment, next.garm_color, next.mark_color, next.active, product.id);
+  } catch {
+    return res.status(409).json({ error: 'Ce slug existe déjà' });
+  }
+  res.json(productWithVariants(db.prepare('SELECT * FROM products WHERE id = ?').get(product.id)));
+});
+
+app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
+  const { changes } = db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+  if (!changes) return res.status(404).json({ error: 'Pièce introuvable' });
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/products/:id/variants', requireAdmin, (req, res) => {
+  const product = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
+  if (!product) return res.status(404).json({ error: 'Pièce introuvable' });
+  const size = String(req.body?.size || '').trim();
+  const stock = Number(req.body?.stock);
+  if (!size || size.length > 20) return res.status(400).json({ error: 'Taille invalide' });
+  if (!Number.isInteger(stock) || stock < 0 || stock > 9999) return res.status(400).json({ error: 'Stock invalide' });
+  try {
+    const { lastInsertRowid } = db.prepare('INSERT INTO variants (product_id, size, stock) VALUES (?, ?, ?)').run(product.id, size, stock);
+    res.status(201).json(db.prepare('SELECT id, size, stock FROM variants WHERE id = ?').get(lastInsertRowid));
+  } catch {
+    res.status(409).json({ error: 'Cette taille existe déjà pour cette pièce' });
+  }
+});
+
+app.delete('/api/admin/variants/:id', requireAdmin, (req, res) => {
+  const { changes } = db.prepare('DELETE FROM variants WHERE id = ?').run(req.params.id);
+  if (!changes) return res.status(404).json({ error: 'Taille introuvable' });
+  res.json({ ok: true });
+});
+
+/* ============ Admin : comptes équipe ============ */
+app.get('/api/admin/admins', requireAdmin, (_req, res) => {
+  res.json(db.prepare('SELECT id, email, name FROM admins ORDER BY id').all());
+});
+
+app.post('/api/admin/admins', requireAdmin, async (req, res) => {
+  const name = String(req.body?.name || '').trim();
+  const email = String(req.body?.email || '').toLowerCase().trim();
+  const password = String(req.body?.password || '');
+  if (name.length < 2 || name.length > 80) return res.status(400).json({ error: 'Nom invalide' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'E-mail invalide' });
+  if (password.length < 8) return res.status(400).json({ error: 'Mot de passe : 8 caractères minimum' });
+
+  const hash = await hashPassword(password);
+  try {
+    const { lastInsertRowid } = db.prepare('INSERT INTO admins (email, password_hash, name) VALUES (?, ?, ?)').run(email, hash, name);
+    res.status(201).json({ id: lastInsertRowid, email, name });
+  } catch {
+    res.status(409).json({ error: 'Un compte existe déjà avec cet e-mail' });
+  }
+});
+
+app.patch('/api/admin/admins/:id', requireAdmin, async (req, res) => {
+  const admin = db.prepare('SELECT id FROM admins WHERE id = ?').get(req.params.id);
+  if (!admin) return res.status(404).json({ error: 'Compte introuvable' });
+  const { name, password } = req.body || {};
+  if (name !== undefined) {
+    const clean = String(name).trim();
+    if (clean.length < 2 || clean.length > 80) return res.status(400).json({ error: 'Nom invalide' });
+    db.prepare('UPDATE admins SET name = ? WHERE id = ?').run(clean, admin.id);
+  }
+  if (password !== undefined) {
+    if (String(password).length < 8) return res.status(400).json({ error: 'Mot de passe : 8 caractères minimum' });
+    const hash = await hashPassword(String(password));
+    db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(hash, admin.id);
+  }
+  res.json(db.prepare('SELECT id, email, name FROM admins WHERE id = ?').get(admin.id));
+});
+
+app.delete('/api/admin/admins/:id', requireAdmin, (req, res) => {
+  if (Number(req.params.id) === req.admin.sub) {
+    return res.status(400).json({ error: 'Impossible de supprimer ton propre compte' });
+  }
+  const total = db.prepare('SELECT COUNT(*) AS n FROM admins').get().n;
+  if (total <= 1) return res.status(400).json({ error: 'Impossible de supprimer le dernier compte admin' });
+  const { changes } = db.prepare('DELETE FROM admins WHERE id = ?').run(req.params.id);
+  if (!changes) return res.status(404).json({ error: 'Compte introuvable' });
+  res.json({ ok: true });
 });
 
 /* ============ Admin : notifications ============ */

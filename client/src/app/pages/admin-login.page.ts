@@ -51,7 +51,7 @@ export class AdminLoginPage {
     this.loading.set(true);
     this.api.login(this.email, this.password).subscribe({
       next: ({ token, admin }) => {
-        this.auth.store(token, admin.name);
+        this.auth.store(token, admin.name, admin.id);
         this.router.navigate(['/admin']);
       },
       error: (err) => {
