@@ -209,7 +209,7 @@ const adminRow = db.prepare('SELECT id, password_hash FROM admins ORDER BY id LI
 if (!adminRow) {
   const hash = await argon2.hash(process.env.ADMIN_PASSWORD || 'LuniqueJam#2026', ARGON_OPTS);
   db.prepare('INSERT INTO admins (email, password_hash, name) VALUES (?, ?, ?)')
-    .run('admin@luniquejam.com', hash, 'Ansoumana');
+    .run('admin@luniquejam.com', hash, 'Ansou');
   console.log('✓ Compte admin créé (admin@luniquejam.com) — hash Argon2id');
 } else if (process.env.ADMIN_PASSWORD) {
   // ADMIN_PASSWORD fait autorité : on resynchronise le hash si le mot de passe a changé
