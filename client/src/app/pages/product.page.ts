@@ -25,7 +25,16 @@ import { FcfaPipe } from '../fcfa.pipe';
             <div class="product-gallery">
               @if (activeMedia(); as m) {
                 @if (m.type === 'image') {
-                  <img [src]="m.url" [alt]="p.name" class="product-gallery__main" />
+                  <div class="product-gallery__zoom"
+                       (mouseenter)="zoomActive.set(true)"
+                       (mouseleave)="zoomActive.set(false)"
+                       (mousemove)="onZoomMove($event)">
+                    <img [src]="m.url" [alt]="p.name" class="product-gallery__main" />
+                    <div class="product-gallery__zoom-lens"
+                         [class.active]="zoomActive()"
+                         [style.background-image]="'url(' + m.url + ')'"
+                         [style.background-position]="zoomPos()"></div>
+                  </div>
                 } @else {
                   <video [src]="m.url" controls class="product-gallery__main"></video>
                 }
@@ -129,6 +138,16 @@ export class ProductPage {
     const id = this.activeMediaId();
     return p.media.find((m) => m.id === id) ?? p.media[0];
   });
+
+  readonly zoomActive = signal(false);
+  readonly zoomPos = signal('50% 50%');
+
+  onZoomMove(event: MouseEvent): void {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    this.zoomPos.set(`${x}% ${y}%`);
+  }
 
   readonly selectedVariant = computed(() => {
     const p = this.product();
