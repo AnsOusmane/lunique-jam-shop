@@ -106,7 +106,7 @@ body::after {
 .btn--ghost { border-color: rgba(11,11,10,0.3); }
 .btn--ghost:hover:not(:disabled) { border-color: var(--ink); background: var(--ink); color: var(--bone); }
 .btn--sm { padding: 10px 20px; font-size: 11px; }
-.btn .btn__arrow { width: 24px; aspect-ratio: 680/270; fill: currentColor; transform: scaleX(-1); }
+.btn .btn__arrow { width: 24px; aspect-ratio: 200/74.88; fill: currentColor; transform: scaleX(-1); }
 
 /* ---------- Header ---------- */
 .shop-header {
@@ -126,7 +126,7 @@ body::after {
   font-size: 16px; letter-spacing: 0.04em;
   white-space: nowrap;
 }
-.shop-header__brand svg { width: 36px; aspect-ratio: 680/270; fill: var(--emerald); }
+.shop-header__brand svg { width: 36px; aspect-ratio: 200/74.88; fill: var(--emerald); }
 .shop-header__nav { display: flex; gap: clamp(14px, 2.5vw, 34px); align-items: center; }
 .shop-header__nav a {
   font-family: var(--font-label);
@@ -199,7 +199,7 @@ body::after {
 .ljart__garment--pants { aspect-ratio: 200/240; }
 .ljart__mark {
   position: absolute; left: 50%; top: 39%;
-  width: 13%; aspect-ratio: 680/270;
+  width: 13%; aspect-ratio: 200/74.88;
   translate: -50% 0;
   transition: transform 0.6s var(--ease-expo);
   pointer-events: none;
@@ -335,7 +335,7 @@ body::after {
   letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.6;
 }
 .back-link:hover { opacity: 1; }
-.back-link svg { width: 22px; aspect-ratio: 680/270; fill: currentColor; }
+.back-link svg { width: 22px; aspect-ratio: 200/74.88; fill: currentColor; }
 
 /* ---------- Panier ---------- */
 .cart-lines { display: flex; flex-direction: column; }
@@ -362,7 +362,7 @@ body::after {
 .cart-summary .row { display: flex; justify-content: space-between; gap: 20px; }
 .cart-summary .row--total { font-family: var(--font-display); font-weight: 800; font-size: 22px; text-transform: uppercase; margin-top: 6px; }
 .cart-empty { text-align: center; padding: clamp(40px, 8vw, 100px) 0; }
-.cart-empty svg { width: 120px; aspect-ratio: 680/270; fill: rgba(11,11,10,0.15); margin: 0 auto 24px; }
+.cart-empty svg { width: 120px; aspect-ratio: 200/74.88; fill: rgba(11,11,10,0.15); margin: 0 auto 24px; }
 
 /* ---------- Formulaires ---------- */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 20px; }
@@ -430,7 +430,7 @@ body::after {
 
 /* ---------- Confirmation ---------- */
 .confirm { text-align: center; padding-top: clamp(30px, 6vw, 70px); }
-.confirm svg.arrow { width: 130px; aspect-ratio: 680/270; fill: var(--emerald); margin: 0 auto 28px; }
+.confirm svg.arrow { width: 130px; aspect-ratio: 200/74.88; fill: var(--emerald); margin: 0 auto 28px; }
 .confirm .ref {
   font-family: var(--font-label); font-size: clamp(22px, 4vw, 40px);
   letter-spacing: 0.14em; color: var(--emerald);
@@ -522,7 +522,7 @@ body::after {
 }
 .shop-footer__grid { display: flex; flex-wrap: wrap; gap: 30px 60px; justify-content: space-between; margin-bottom: 36px; }
 .shop-footer__brand { display: flex; align-items: center; gap: 12px; font-family: var(--font-logo); font-weight: 800; font-style: italic; font-size: 18px; }
-.shop-footer__brand svg { width: 44px; aspect-ratio: 680/270; fill: var(--emerald-bright); }
+.shop-footer__brand svg { width: 44px; aspect-ratio: 200/74.88; fill: var(--emerald-bright); }
 .shop-footer nav { display: flex; flex-wrap: wrap; gap: 10px 26px; }
 .shop-footer nav a { font-size: 13.5px; opacity: 0.75; }
 .shop-footer nav a:hover { opacity: 1; color: var(--emerald-bright); }
