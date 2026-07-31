@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Lunique Jam — On revient très vite</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<meta name="theme-color" content="#0B0B0A" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  @font-face {
+    font-family: "Maszeh";
+    src: url("/maintenance-assets/Maszeh.otf") format("opentype");
+    font-weight: normal; font-style: normal; font-display: swap;
+  }
+
+  :root {
+    --ink: #0B0B0A;
+    --ink-soft: #161614;
+    --bone: #F7F4EC;
+    --emerald: #0E5A41;
+    --emerald-bright: #17A06B;
+    --gold: #C9A25E;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  a { color: inherit; text-decoration: none; }
+  body {
+    background: var(--ink);
+    color: var(--bone);
+    font-family: "Manrope", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    overflow-x: hidden;
+  }
+
+  /* Grain global, identique à la boutique */
+  body::after {
+    content: "";
+    position: fixed; inset: -50%;
+    z-index: 5; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+  }
+
+  .side {
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    padding: clamp(28px, 4.5vw, 72px);
+    position: relative;
+  }
+
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    font-family: "Maszeh", "Syne", sans-serif;
+    font-weight: 800; font-style: italic;
+    font-size: clamp(16px, 1.6vw, 19px);
+    letter-spacing: 0.04em;
+  }
+  .brand svg { width: 40px; aspect-ratio: 680/270; fill: var(--emerald-bright); }
+
+  .status {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: "Space Grotesk", monospace;
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold);
+    border: 1px solid rgba(201, 162, 94, 0.35);
+    border-radius: 999px;
+    padding: 8px 16px;
+    width: fit-content;
+  }
+  .status::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--emerald-bright);
+    box-shadow: 0 0 0 0 rgba(23, 160, 107, 0.6);
+    animation: pulse 1.8s ease-out infinite;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(23, 160, 107, 0.55); }
+    70%  { box-shadow: 0 0 0 9px rgba(23, 160, 107, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(23, 160, 107, 0); }
+  }
+
+  main { max-width: 46ch; }
+
+  .eyebrow {
+    font-family: "Space Grotesk", monospace;
+    font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--emerald-bright);
+    margin-bottom: 18px;
+  }
+
+  h1 {
+    font-family: "Syne", sans-serif;
+    font-weight: 800; text-transform: uppercase;
+    letter-spacing: -0.02em; line-height: 0.96;
+    font-size: clamp(38px, 6.2vw, 68px);
+  }
+  h1 em {
+    font-style: normal;
+    color: transparent;
+    -webkit-text-stroke: 1px var(--bone);
+  }
+
+  p.lede {
+    margin-top: 22px;
+    font-size: clamp(14.5px, 1.4vw, 16.5px);
+    line-height: 1.65;
+    color: rgba(247, 244, 236, 0.72);
+    max-width: 40ch;
+  }
+
+  .contact {
+    margin-top: 34px;
+    display: flex; flex-wrap: wrap; gap: 12px 28px;
+    font-family: "Space Grotesk", monospace;
+    font-size: 12.5px; letter-spacing: 0.1em;
+  }
+  .contact a { color: var(--bone); text-decoration: none; opacity: 0.85; border-bottom: 1px solid rgba(247,244,236,0.25); padding-bottom: 2px; }
+  .contact a:hover { opacity: 1; color: var(--emerald-bright); border-color: var(--emerald-bright); }
+
+  footer.legal {
+    font-family: "Space Grotesk", monospace;
+    font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(247, 244, 236, 0.4);
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+
+  /* ---------- Visuel produit ---------- */
+  .visual {
+    position: relative;
+    background:
+      radial-gradient(120% 90% at 75% 8%, #1c1c19 0%, #0f0f0d 55%, var(--ink) 100%);
+    border-left: 1px solid rgba(247, 244, 236, 0.08);
+    display: flex; align-items: center; justify-content: center;
+    padding: clamp(24px, 3vw, 48px);
+    overflow: hidden;
+  }
+  .visual__frame {
+    position: relative;
+    width: 100%; max-width: 640px;
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid rgba(247, 244, 236, 0.12);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  .visual__frame img {
+    display: block; width: 100%; height: auto;
+    filter: saturate(0.92) contrast(1.03);
+  }
+  .visual__tag {
+    position: absolute; left: 18px; bottom: 18px;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(11, 11, 10, 0.72);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(247, 244, 236, 0.18);
+    border-radius: 999px;
+    padding: 9px 16px 9px 10px;
+    font-family: "Space Grotesk", monospace;
+    font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  .visual__tag .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+
+  @media (max-width: 880px) {
+    body { grid-template-columns: 1fr; }
+    .visual { min-height: 46vh; order: -1; border-left: none; border-bottom: 1px solid rgba(247,244,236,0.08); }
+  }
+</style>
+</head>
+<body>
+
+  <section class="side">
+    <a class="brand" href="/" aria-label="Lunique Jam">
+      <svg viewBox="0 0 680 270" aria-hidden="true"><path d="M679 2 L462 100 L8 119 L8 143 L462 158 L679 262 L586 166 L462 146 L372 131 L462 116 L586 96 Z" /></svg>
+      LUNIQUE&nbsp;JAM
+    </a>
+
+    <main>
+      <p class="eyebrow">Style with Values</p>
+      <span class="status" style="margin-bottom:20px">Maintenance en cours</span>
+      <h1>On peaufine<br />la <em>coupe</em>.</h1>
+      <p class="lede">
+        La boutique fait une pause technique le temps qu'on règle quelques détails
+        en coulisses. Le Drop reste fidèle à lui-même — on revient très vite,
+        propre comme un premier jour.
+      </p>
+      <div class="contact">
+        <a href="mailto:hello@luniquejam.com">hello&#64;luniquejam.com</a>
+        <a href="/admin/login">Espace équipe</a>
+      </div>
+    </main>
+
+    <footer class="legal">
+      <span>© MMXXVI Lunique Jam — Dakar, Sénégal</span>
+      <span>Clean fits, clean heart.</span>
+    </footer>
+  </section>
+
+  <section class="visual" aria-hidden="true">
+    <div class="visual__frame">
+      <img src="/maintenance-assets/tee.png" alt="" onerror="this.parentElement.style.display='none'" />
+      <span class="visual__tag"><span class="dot"></span>Drop 001 — Genesis</span>
+    </div>
+  </section>
+
+</body>
+</html>
