@@ -167,6 +167,8 @@ export interface TrafficStats {
   viewsToday: number;
   byDay: { date: string; views: number; visitors: number }[];
   topPages: { path: string; views: number }[];
+  byCountry: { country: string; views: number }[];
+  recent: { path: string; country: string | null; created_at: string }[];
 }
 
 export const ZONE_FEES: Record<Zone, number> = { dakar: 2000, regions: 3500, retrait: 0 };

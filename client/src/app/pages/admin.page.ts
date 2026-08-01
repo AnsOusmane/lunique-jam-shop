@@ -271,6 +271,39 @@ import { AdminAccountsComponent } from './admin-accounts.component';
                 </tbody>
               </table>
             </div>
+
+            <div class="table-scroll">
+              <h2 class="label" style="margin-bottom: 10px">Par pays</h2>
+              <table class="admin-table">
+                <thead><tr><th>Pays</th><th>Vues</th></tr></thead>
+                <tbody>
+                  @for (c of t.byCountry; track c.country) {
+                    <tr><td>{{ c.country }}</td><td>{{ c.views }}</td></tr>
+                  } @empty {
+                    <tr><td colspan="2" style="text-align: center; opacity: 0.5; padding: 20px">Pas encore de données (IP locales non géolocalisables).</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-scroll">
+              <h2 class="label" style="margin-bottom: 10px">Dernières visites</h2>
+              <table class="admin-table">
+                <thead><tr><th>Date</th><th>Heure</th><th>Page</th><th>Pays</th></tr></thead>
+                <tbody>
+                  @for (v of t.recent; track $index) {
+                    <tr>
+                      <td>{{ v.created_at.slice(0, 10) }}</td>
+                      <td style="font-family: var(--font-label)">{{ v.created_at.slice(11, 16) }} UTC</td>
+                      <td>{{ v.path }}</td>
+                      <td>{{ v.country || '—' }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="4" style="text-align: center; opacity: 0.5; padding: 20px">Pas encore de données.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
           </div>
         }
       } @else {

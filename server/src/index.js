@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import geoip from 'geoip-country';
 import db, { UPLOADS_DIR } from './db.js';
 import {
   login, requireAdmin, hashPassword,
@@ -105,12 +106,13 @@ function notifyStatusChanged(orderId) {
 }
 
 /* ============ Public : visites ============ */
-const insertPageView = db.prepare('INSERT INTO page_views (path, visitor_id) VALUES (?, ?)');
+const insertPageView = db.prepare('INSERT INTO page_views (path, visitor_id, country) VALUES (?, ?, ?)');
 app.post('/api/track', trackLimiter, (req, res) => {
   const path = String(req.body?.path || '').slice(0, 200);
   const visitorId = String(req.body?.visitorId || '').slice(0, 64);
   if (!path.startsWith('/') || !visitorId) return res.status(400).json({ error: 'Requête invalide' });
-  insertPageView.run(path, visitorId);
+  const geo = geoip.lookup(req.ip);
+  insertPageView.run(path, visitorId, geo?.name || null);
   res.status(204).end();
 });
 
@@ -695,7 +697,21 @@ app.get('/api/admin/traffic', requireAdmin, (_req, res) => {
     ORDER BY views DESC
     LIMIT 10
   `).all();
-  res.json({ ...totals, viewsToday: today.n, byDay, topPages });
+  const byCountry = db.prepare(`
+    SELECT country, COUNT(*) AS views
+    FROM page_views
+    WHERE country IS NOT NULL
+    GROUP BY country
+    ORDER BY views DESC
+    LIMIT 10
+  `).all();
+  const recent = db.prepare(`
+    SELECT path, country, created_at
+    FROM page_views
+    ORDER BY id DESC
+    LIMIT 30
+  `).all();
+  res.json({ ...totals, viewsToday: today.n, byDay, topPages, byCountry, recent });
 });
 
 /* ============ 404 API ============ */

@@ -122,6 +122,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     path TEXT NOT NULL,
     visitor_id TEXT NOT NULL,
+    country TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views(created_at);
@@ -132,6 +133,9 @@ const orderCols = db.prepare('PRAGMA table_info(orders)').all().map((c) => c.nam
 if (!orderCols.includes('customer_id')) db.exec('ALTER TABLE orders ADD COLUMN customer_id INTEGER');
 if (!orderCols.includes('promo_code')) db.exec('ALTER TABLE orders ADD COLUMN promo_code TEXT');
 if (!orderCols.includes('discount')) db.exec('ALTER TABLE orders ADD COLUMN discount INTEGER NOT NULL DEFAULT 0');
+
+const pageViewCols = db.prepare('PRAGMA table_info(page_views)').all().map((c) => c.name);
+if (!pageViewCols.includes('country')) db.exec('ALTER TABLE page_views ADD COLUMN country TEXT');
 
 /* ---------- Seed (idempotent) ---------- */
 const productCount = db.prepare('SELECT COUNT(*) AS n FROM products').get().n;
