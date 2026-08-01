@@ -25,7 +25,7 @@ if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 // CSP désactivée : l'app charge Google Fonts et utilise des styles inline Angular.
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-  origin: [/^http:\/\/localhost:\d+$/, process.env.PUBLIC_URL].filter(Boolean),
+  origin: [/^http:\/\/localhost:\d+$/, process.env.PUBLIC_URL, 'https://luniquejam.com'].filter(Boolean),
 }));
 app.use(express.json({ limit: '100kb' }));
 app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
