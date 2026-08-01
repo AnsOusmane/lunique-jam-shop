@@ -161,6 +161,14 @@ export interface AdminStats {
   lowStock: { name: string; size: string; stock: number }[];
 }
 
+export interface TrafficStats {
+  totalViews: number;
+  uniqueVisitors: number;
+  viewsToday: number;
+  byDay: { date: string; views: number; visitors: number }[];
+  topPages: { path: string; views: number }[];
+}
+
 export const ZONE_FEES: Record<Zone, number> = { dakar: 2000, regions: 3500, retrait: 0 };
 
 export const ZONE_LABELS: Record<Zone, string> = {

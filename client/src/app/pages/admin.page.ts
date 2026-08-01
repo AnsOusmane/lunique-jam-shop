@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { ApiService } from '../services/api.service';
 import { AuthService } from '../services/auth.service';
 import { FcfaPipe } from '../fcfa.pipe';
-import { AdminOrder, AdminStats, NotificationRow, PAYMENT_LABELS, Promo, STATUS_LABELS, StockRow } from '../models';
+import { AdminOrder, AdminStats, NotificationRow, PAYMENT_LABELS, Promo, STATUS_LABELS, StockRow, TrafficStats } from '../models';
 import { AdminProductsComponent } from './admin-products.component';
 import { AdminAccountsComponent } from './admin-accounts.component';
 
@@ -50,6 +50,7 @@ import { AdminAccountsComponent } from './admin-accounts.component';
         <button class="chip" [class.active]="tab() === 'stock'" (click)="tab.set('stock')" role="tab">Stocks</button>
         <button class="chip" [class.active]="tab() === 'promos'" (click)="tab.set('promos')" role="tab">Promos</button>
         <button class="chip" [class.active]="tab() === 'notifs'" (click)="tab.set('notifs')" role="tab">Notifications</button>
+        <button class="chip" [class.active]="tab() === 'traffic'" (click)="tab.set('traffic')" role="tab">Visites</button>
         <button class="chip" [class.active]="tab() === 'admins'" (click)="tab.set('admins')" role="tab">Comptes admin</button>
       </div>
 
@@ -220,6 +221,58 @@ import { AdminAccountsComponent } from './admin-accounts.component';
             </tbody>
           </table>
         </div>
+      } @else if (tab() === 'traffic') {
+        @if (traffic(); as t) {
+          <div class="admin-stats">
+            <div class="stat-card">
+              <span class="label">Vues totales</span>
+              <p class="num">{{ t.totalViews }}</p>
+            </div>
+            <div class="stat-card stat-card--accent">
+              <span class="label">Visiteurs uniques</span>
+              <p class="num">{{ t.uniqueVisitors }}</p>
+            </div>
+            <div class="stat-card">
+              <span class="label">Vues aujourd'hui</span>
+              <p class="num">{{ t.viewsToday }}</p>
+            </div>
+          </div>
+
+          <p style="opacity: 0.6; margin: 10px 0 18px; max-width: 62ch">
+            MVP maison — pas de tracking tiers pour l'instant. On enrichira (graphique, sources de trafic)
+            avant de brancher Google Analytics si besoin.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start">
+            <div class="table-scroll">
+              <h2 class="label" style="margin-bottom: 10px">14 derniers jours</h2>
+              <table class="admin-table">
+                <thead><tr><th>Date</th><th>Vues</th><th>Visiteurs</th></tr></thead>
+                <tbody>
+                  @for (d of t.byDay; track d.date) {
+                    <tr><td>{{ d.date }}</td><td>{{ d.views }}</td><td>{{ d.visitors }}</td></tr>
+                  } @empty {
+                    <tr><td colspan="3" style="text-align: center; opacity: 0.5; padding: 20px">Pas encore de données.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-scroll">
+              <h2 class="label" style="margin-bottom: 10px">Pages les plus vues</h2>
+              <table class="admin-table">
+                <thead><tr><th>Page</th><th>Vues</th></tr></thead>
+                <tbody>
+                  @for (p of t.topPages; track p.path) {
+                    <tr><td>{{ p.path }}</td><td>{{ p.views }}</td></tr>
+                  } @empty {
+                    <tr><td colspan="2" style="text-align: center; opacity: 0.5; padding: 20px">Pas encore de données.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
       } @else {
         <app-admin-accounts />
       }
@@ -235,12 +288,13 @@ export class AdminPage {
   readonly paymentLabels = PAYMENT_LABELS;
   readonly statuses = Object.keys(STATUS_LABELS);
 
-  readonly tab = signal<'orders' | 'products' | 'stock' | 'promos' | 'notifs' | 'admins'>('orders');
+  readonly tab = signal<'orders' | 'products' | 'stock' | 'promos' | 'notifs' | 'traffic' | 'admins'>('orders');
   readonly orders = signal<AdminOrder[]>([]);
   readonly stock = signal<StockRow[]>([]);
   readonly stats = signal<AdminStats | null>(null);
   readonly promos = signal<Promo[]>([]);
   readonly notifs = signal<NotificationRow[]>([]);
+  readonly traffic = signal<TrafficStats | null>(null);
   readonly error = signal<string | null>(null);
 
   pending: Record<number, number> = {};
@@ -261,6 +315,7 @@ export class AdminPage {
     this.api.adminStats().subscribe({ next: (s) => this.stats.set(s), error: (e) => this.fail(e) });
     this.api.adminPromos().subscribe({ next: (p) => this.promos.set(p), error: (e) => this.fail(e) });
     this.api.adminNotifications().subscribe({ next: (n) => this.notifs.set(n), error: (e) => this.fail(e) });
+    this.api.adminTraffic().subscribe({ next: (t) => this.traffic.set(t), error: (e) => this.fail(e) });
   }
 
   createPromo(): void {

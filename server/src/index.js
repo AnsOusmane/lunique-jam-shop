@@ -48,6 +48,7 @@ if (MAINTENANCE_MODE) {
 
 const orderLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
+const trackLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
 
 /* ============ Helpers ============ */
 const ZONES = { dakar: 2000, regions: 3500, retrait: 0 };
@@ -99,6 +100,16 @@ function notifyStatusChanged(orderId) {
   if (order.email) sendEmail({ orderRef: order.ref, to: order.email, ...msgs.email }).catch(() => {});
   sendSms({ orderRef: order.ref, to: order.phone, text: msgs.sms }).catch(() => {});
 }
+
+/* ============ Public : visites ============ */
+const insertPageView = db.prepare('INSERT INTO page_views (path, visitor_id) VALUES (?, ?)');
+app.post('/api/track', trackLimiter, (req, res) => {
+  const path = String(req.body?.path || '').slice(0, 200);
+  const visitorId = String(req.body?.visitorId || '').slice(0, 64);
+  if (!path.startsWith('/') || !visitorId) return res.status(400).json({ error: 'Requête invalide' });
+  insertPageView.run(path, visitorId);
+  res.status(204).end();
+});
 
 /* ============ Public : produits ============ */
 app.get('/api/products', (_req, res) => {
@@ -657,6 +668,31 @@ app.get('/api/admin/stats', requireAdmin, (_req, res) => {
     WHERE v.stock <= 3 ORDER BY v.stock
   `).all();
   res.json({ ...stats, lowStock });
+});
+
+app.get('/api/admin/traffic', requireAdmin, (_req, res) => {
+  const totals = db.prepare(`
+    SELECT COUNT(*) AS totalViews, COUNT(DISTINCT visitor_id) AS uniqueVisitors
+    FROM page_views
+  `).get();
+  const today = db.prepare(`
+    SELECT COUNT(*) AS n FROM page_views WHERE date(created_at) = date('now')
+  `).get();
+  const byDay = db.prepare(`
+    SELECT date(created_at) AS date, COUNT(*) AS views, COUNT(DISTINCT visitor_id) AS visitors
+    FROM page_views
+    WHERE created_at >= datetime('now', '-14 days')
+    GROUP BY date(created_at)
+    ORDER BY date(created_at)
+  `).all();
+  const topPages = db.prepare(`
+    SELECT path, COUNT(*) AS views
+    FROM page_views
+    GROUP BY path
+    ORDER BY views DESC
+    LIMIT 10
+  `).all();
+  res.json({ ...totals, viewsToday: today.n, byDay, topPages });
 });
 
 /* ============ 404 API ============ */

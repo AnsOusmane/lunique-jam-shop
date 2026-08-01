@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   AdminOrder, AdminStats, AdminUser, Customer, Media, NotificationRow, OrderPayload, OrderResult,
-  Product, ProductInput, Promo, StockRow, TrackedOrder, Variant,
+  Product, ProductInput, Promo, StockRow, TrackedOrder, TrafficStats, Variant,
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -49,6 +49,14 @@ export class ApiService {
 
   adminStats(): Observable<AdminStats> {
     return this.http.get<AdminStats>('/api/admin/stats');
+  }
+
+  adminTraffic(): Observable<TrafficStats> {
+    return this.http.get<TrafficStats>('/api/admin/traffic');
+  }
+
+  trackVisit(path: string, visitorId: string): Observable<void> {
+    return this.http.post<void>('/api/track', { path, visitorId });
   }
 
   /* ---- Comptes clients ---- */
