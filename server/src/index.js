@@ -41,6 +41,9 @@ if (MAINTENANCE_MODE) {
   app.use((req, res, next) => {
     if (req.path.startsWith('/api/admin') || req.path.startsWith('/api/auth/login')) return next();
     if (req.path.startsWith('/api')) return res.status(503).json({ error: 'Boutique en maintenance' });
+    // L'espace équipe (page Angular /admin/*) et les fichiers statiques du build (JS/CSS/fonts,
+    // nécessaires pour que cette page se charge) restent accessibles pendant la maintenance.
+    if (req.path.startsWith('/admin') || /\.[a-zA-Z0-9]+$/.test(req.path)) return next();
     res.status(503).set('Retry-After', '3600').type('html').send(maintenancePage);
   });
   console.log('⚠ Mode maintenance ACTIF — boutique publique désactivée');
