@@ -39,7 +39,7 @@ if (MAINTENANCE_MODE) {
   const maintenancePage = fs.readFileSync(path.join(__dirname, '..', 'public', 'maintenance.html'), 'utf8');
   app.use('/maintenance-assets', express.static(maintenanceAssets, { maxAge: '1d' }));
   app.use((req, res, next) => {
-    if (req.path.startsWith('/api/admin') || req.path.startsWith('/api/auth/login')) return next();
+    if (req.path.startsWith('/api/admin') || req.path.startsWith('/api/auth/login') || req.path.startsWith('/api/track')) return next();
     if (req.path.startsWith('/api')) return res.status(503).json({ error: 'Boutique en maintenance' });
     // L'espace équipe (page Angular /admin/*) et les fichiers statiques du build (JS/CSS/fonts,
     // nécessaires pour que cette page se charge) restent accessibles pendant la maintenance.
