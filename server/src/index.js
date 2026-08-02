@@ -123,12 +123,21 @@ app.get('/api/categories', (_req, res) => {
 
 /* ============ Public : produits ============ */
 app.get('/api/products', (_req, res) => {
-  const rows = db.prepare('SELECT * FROM products WHERE active = 1 ORDER BY id').all();
+  const rows = db.prepare(`
+    SELECT p.* FROM products p
+    JOIN categories c ON c.key = p.category
+    WHERE p.active = 1 AND c.active = 1
+    ORDER BY p.id
+  `).all();
   res.json(rows.map(productWithVariants));
 });
 
 app.get('/api/products/:slug', (req, res) => {
-  const row = db.prepare('SELECT * FROM products WHERE slug = ? AND active = 1').get(req.params.slug);
+  const row = db.prepare(`
+    SELECT p.* FROM products p
+    JOIN categories c ON c.key = p.category
+    WHERE p.slug = ? AND p.active = 1 AND c.active = 1
+  `).get(req.params.slug);
   if (!row) return res.status(404).json({ error: 'Pièce introuvable' });
   res.json(productWithVariants(row));
 });
