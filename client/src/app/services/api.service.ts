@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  AdminOrder, AdminStats, AdminUser, Customer, Media, NotificationRow, OrderPayload, OrderResult,
+  AdminOrder, AdminStats, AdminUser, Category, Customer, Media, NotificationRow, OrderPayload, OrderResult,
   Product, ProductInput, Promo, StockRow, TrackedOrder, TrafficStats, Variant,
 } from '../models';
 
@@ -12,6 +12,10 @@ export class ApiService {
 
   getProducts(): Observable<Product[]> {
     return this.http.get<Product[]>('/api/products');
+  }
+
+  getCategories(): Observable<Category[]> {
+    return this.http.get<Category[]>('/api/categories');
   }
 
   getProduct(slug: string): Observable<Product> {
@@ -97,6 +101,24 @@ export class ApiService {
 
   adminNotifications(): Observable<NotificationRow[]> {
     return this.http.get<NotificationRow[]>('/api/admin/notifications');
+  }
+
+  /* ---- Catégories (admin) ---- */
+
+  adminCategories(): Observable<Category[]> {
+    return this.http.get<Category[]>('/api/admin/categories');
+  }
+
+  createCategory(data: { key: string; label: string }): Observable<Category> {
+    return this.http.post<Category>('/api/admin/categories', data);
+  }
+
+  updateCategory(id: number, patch: { label?: string; active?: boolean }): Observable<Category> {
+    return this.http.patch<Category>(`/api/admin/categories/${id}`, patch);
+  }
+
+  deleteCategory(id: number): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`/api/admin/categories/${id}`);
   }
 
   /* ---- Produits (admin) ---- */

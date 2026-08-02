@@ -6,15 +6,6 @@ import { ArtComponent } from '../art.component';
 import { FcfaPipe } from '../fcfa.pipe';
 import { Product } from '../models';
 
-const CATEGORIES = [
-  { key: 'tous', label: 'Tout' },
-  { key: 'tee', label: 'Tees' },
-  { key: 'hoodie', label: 'Hoodies' },
-  { key: 'crew', label: 'Crewnecks' },
-  { key: 'pantalon', label: 'Pantalons' },
-  { key: 'accessoire', label: 'Accessoires' },
-];
-
 @Component({
   selector: 'app-shop',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,7 +20,7 @@ const CATEGORIES = [
       </header>
 
       <div class="filters" role="group" aria-label="Filtrer par catégorie">
-        @for (cat of categories; track cat.key) {
+        @for (cat of categories(); track cat.key) {
           <button class="chip" [class.active]="filter() === cat.key" (click)="filter.set(cat.key)">
             {{ cat.label }}
           </button>
@@ -73,7 +64,8 @@ const CATEGORIES = [
 export class ShopPage {
   private api = inject(ApiService);
 
-  readonly categories = CATEGORIES;
+  private fetchedCategories = toSignal(this.api.getCategories(), { initialValue: [] });
+  readonly categories = computed(() => [{ key: 'tous', label: 'Tout' }, ...this.fetchedCategories()]);
   readonly filter = signal('tous');
   readonly products = toSignal(this.api.getProducts());
 

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api.service';
 import { FcfaPipe } from '../fcfa.pipe';
-import { ART_STUDIOS, GARMENTS, Media, Product } from '../models';
+import { ART_STUDIOS, Category, GARMENTS, Media, Product } from '../models';
 
 interface SizeRow {
   size: string;
@@ -55,10 +55,12 @@ const EMPTY_FORM = {
         </div>
         <div class="field">
           <label for="p-category">Catégorie</label>
-          <input id="p-category" name="p-category" [(ngModel)]="form.category" list="categories" required />
-          <datalist id="categories">
-            @for (c of categories(); track c) { <option [value]="c"></option> }
-          </datalist>
+          <select id="p-category" name="p-category" [(ngModel)]="form.category" required>
+            <option value="" disabled>Choisir…</option>
+            @for (c of categories(); track c.id) {
+              <option [value]="c.key">{{ c.label }}{{ c.active ? '' : ' (désactivée)' }}</option>
+            }
+          </select>
         </div>
         <div class="field">
           <label for="p-badge">Badge (optionnel)</label>
@@ -203,7 +205,7 @@ export class AdminProductsComponent {
   readonly arts = ART_STUDIOS;
 
   readonly products = signal<Product[]>([]);
-  readonly categories = signal<string[]>([]);
+  readonly categories = signal<Category[]>([]);
   readonly formOpen = signal(false);
   readonly editingId = signal<number | null>(null);
   readonly editingMedia = signal<Media[]>([]);
@@ -218,14 +220,12 @@ export class AdminProductsComponent {
 
   constructor() {
     this.refresh();
+    this.api.adminCategories().subscribe({ next: (c) => this.categories.set(c) });
   }
 
   refresh(): void {
     this.api.adminProducts().subscribe({
-      next: (products) => {
-        this.products.set(products);
-        this.categories.set([...new Set(products.map((p) => p.category))].sort());
-      },
+      next: (products) => this.products.set(products),
       error: (e) => this.fail(e),
     });
   }

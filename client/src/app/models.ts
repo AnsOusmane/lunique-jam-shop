@@ -161,6 +161,14 @@ export interface AdminStats {
   lowStock: { name: string; size: string; stock: number }[];
 }
 
+export interface Category {
+  id: number;
+  key: string;
+  label: string;
+  active: number;
+  position: number;
+}
+
 export interface TrafficStats {
   totalViews: number;
   uniqueVisitors: number;

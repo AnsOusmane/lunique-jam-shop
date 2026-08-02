@@ -126,6 +126,14 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views(created_at);
+
+  CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT NOT NULL UNIQUE,
+    label TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    position INTEGER NOT NULL DEFAULT 0
+  );
 `);
 
 /* ---------- Migrations additives (idempotentes) ---------- */
@@ -136,6 +144,20 @@ if (!orderCols.includes('discount')) db.exec('ALTER TABLE orders ADD COLUMN disc
 
 const pageViewCols = db.prepare('PRAGMA table_info(page_views)').all().map((c) => c.name);
 if (!pageViewCols.includes('country')) db.exec('ALTER TABLE page_views ADD COLUMN country TEXT');
+
+const categoryCount = db.prepare('SELECT COUNT(*) AS n FROM categories').get().n;
+if (categoryCount === 0) {
+  const cats = [
+    { key: 'tee', label: 'Tees' },
+    { key: 'hoodie', label: 'Hoodies' },
+    { key: 'crew', label: 'Crewnecks' },
+    { key: 'pantalon', label: 'Pantalons' },
+    { key: 'accessoire', label: 'Accessoires' },
+  ];
+  const insertCat = db.prepare('INSERT INTO categories (key, label, position) VALUES (?, ?, ?)');
+  cats.forEach((c, i) => insertCat.run(c.key, c.label, i));
+  console.log('✓ Catégories par défaut seedées');
+}
 
 /* ---------- Seed (idempotent) ---------- */
 const productCount = db.prepare('SELECT COUNT(*) AS n FROM products').get().n;

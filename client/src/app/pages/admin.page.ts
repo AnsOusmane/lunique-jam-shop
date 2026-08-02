@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { ApiService } from '../services/api.service';
 import { AuthService } from '../services/auth.service';
 import { FcfaPipe } from '../fcfa.pipe';
-import { AdminOrder, AdminStats, NotificationRow, PAYMENT_LABELS, Promo, STATUS_LABELS, StockRow, TrafficStats } from '../models';
+import { AdminOrder, AdminStats, Category, NotificationRow, PAYMENT_LABELS, Promo, STATUS_LABELS, StockRow, TrafficStats } from '../models';
 import { AdminProductsComponent } from './admin-products.component';
 import { AdminAccountsComponent } from './admin-accounts.component';
 
@@ -47,6 +47,7 @@ import { AdminAccountsComponent } from './admin-accounts.component';
       <div class="admin-tabs" role="tablist">
         <button class="chip" [class.active]="tab() === 'orders'" (click)="tab.set('orders')" role="tab">Commandes</button>
         <button class="chip" [class.active]="tab() === 'products'" (click)="tab.set('products')" role="tab">Produits</button>
+        <button class="chip" [class.active]="tab() === 'categories'" (click)="tab.set('categories')" role="tab">Catégories</button>
         <button class="chip" [class.active]="tab() === 'stock'" (click)="tab.set('stock')" role="tab">Stocks</button>
         <button class="chip" [class.active]="tab() === 'promos'" (click)="tab.set('promos')" role="tab">Promos</button>
         <button class="chip" [class.active]="tab() === 'notifs'" (click)="tab.set('notifs')" role="tab">Notifications</button>
@@ -111,6 +112,49 @@ import { AdminAccountsComponent } from './admin-accounts.component';
         </div>
       } @else if (tab() === 'products') {
         <app-admin-products />
+      } @else if (tab() === 'categories') {
+        <form class="form-grid" style="max-width: 560px; margin-bottom: 30px" (ngSubmit)="createCategory()" novalidate>
+          <div class="field">
+            <label for="ckey">Clé (technique)</label>
+            <input id="ckey" name="ckey" [(ngModel)]="categoryKey" placeholder="pantalon" style="text-transform: lowercase" />
+          </div>
+          <div class="field">
+            <label for="clabel">Libellé (affiché)</label>
+            <input id="clabel" name="clabel" [(ngModel)]="categoryLabel" placeholder="Pantalons" />
+          </div>
+          <div class="full">
+            <button class="btn btn--dark btn--sm" type="submit">Ajouter la catégorie</button>
+          </div>
+        </form>
+
+        <div class="table-scroll">
+          <table class="admin-table" style="max-width: 620px">
+            <thead>
+              <tr><th>Clé</th><th>Libellé</th><th>État</th><th></th></tr>
+            </thead>
+            <tbody>
+              @for (c of categories(); track c.id) {
+                <tr>
+                  <td style="font-family: var(--font-label)">{{ c.key }}</td>
+                  <td>{{ c.label }}</td>
+                  <td>
+                    <span class="badge-status" [class.badge-status--paye]="c.active" [class.badge-status--annulee]="!c.active">
+                      {{ c.active ? 'Active' : 'Désactivée' }}
+                    </span>
+                  </td>
+                  <td style="white-space: nowrap">
+                    <button class="btn btn--ghost btn--sm" (click)="toggleCategory(c)">
+                      {{ c.active ? 'Désactiver' : 'Réactiver' }}
+                    </button>
+                    <button class="btn btn--ghost btn--sm" style="margin-left: 8px" (click)="removeCategory(c)">Supprimer</button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" style="text-align: center; opacity: 0.5; padding: 30px">Aucune catégorie.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
       } @else if (tab() === 'stock') {
         <div class="table-scroll">
           <table class="admin-table" style="max-width: 640px">
@@ -321,13 +365,14 @@ export class AdminPage {
   readonly paymentLabels = PAYMENT_LABELS;
   readonly statuses = Object.keys(STATUS_LABELS);
 
-  readonly tab = signal<'orders' | 'products' | 'stock' | 'promos' | 'notifs' | 'traffic' | 'admins'>('orders');
+  readonly tab = signal<'orders' | 'products' | 'categories' | 'stock' | 'promos' | 'notifs' | 'traffic' | 'admins'>('orders');
   readonly orders = signal<AdminOrder[]>([]);
   readonly stock = signal<StockRow[]>([]);
   readonly stats = signal<AdminStats | null>(null);
   readonly promos = signal<Promo[]>([]);
   readonly notifs = signal<NotificationRow[]>([]);
   readonly traffic = signal<TrafficStats | null>(null);
+  readonly categories = signal<Category[]>([]);
   readonly error = signal<string | null>(null);
 
   pending: Record<number, number> = {};
@@ -337,6 +382,10 @@ export class AdminPage {
   promoType: 'percent' | 'amount' = 'percent';
   promoValue: number | null = null;
   promoMin: number | null = null;
+
+  // Formulaire nouvelle catégorie
+  categoryKey = '';
+  categoryLabel = '';
 
   constructor() {
     this.refresh();
@@ -349,6 +398,34 @@ export class AdminPage {
     this.api.adminPromos().subscribe({ next: (p) => this.promos.set(p), error: (e) => this.fail(e) });
     this.api.adminNotifications().subscribe({ next: (n) => this.notifs.set(n), error: (e) => this.fail(e) });
     this.api.adminTraffic().subscribe({ next: (t) => this.traffic.set(t), error: (e) => this.fail(e) });
+    this.api.adminCategories().subscribe({ next: (c) => this.categories.set(c), error: (e) => this.fail(e) });
+  }
+
+  createCategory(): void {
+    if (!this.categoryKey.trim() || !this.categoryLabel.trim()) return;
+    this.api.createCategory({ key: this.categoryKey.trim().toLowerCase(), label: this.categoryLabel.trim() }).subscribe({
+      next: () => {
+        this.categoryKey = '';
+        this.categoryLabel = '';
+        this.refresh();
+      },
+      error: (e) => this.fail(e),
+    });
+  }
+
+  toggleCategory(cat: Category): void {
+    this.api.updateCategory(cat.id, { active: !cat.active }).subscribe({
+      next: () => this.refresh(),
+      error: (e) => this.fail(e),
+    });
+  }
+
+  removeCategory(cat: Category): void {
+    if (!confirm(`Supprimer la catégorie « ${cat.label} » ?`)) return;
+    this.api.deleteCategory(cat.id).subscribe({
+      next: () => this.refresh(),
+      error: (e) => this.fail(e),
+    });
   }
 
   createPromo(): void {

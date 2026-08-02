@@ -116,6 +116,11 @@ app.post('/api/track', trackLimiter, (req, res) => {
   res.status(204).end();
 });
 
+/* ============ Public : catégories ============ */
+app.get('/api/categories', (_req, res) => {
+  res.json(db.prepare('SELECT key, label FROM categories WHERE active = 1 ORDER BY position, id').all());
+});
+
 /* ============ Public : produits ============ */
 app.get('/api/products', (_req, res) => {
   const rows = db.prepare('SELECT * FROM products WHERE active = 1 ORDER BY id').all();
@@ -376,6 +381,49 @@ app.patch('/api/admin/promos/:id', requireAdmin, (req, res) => {
   if (active !== 0 && active !== 1 && typeof active !== 'boolean') return res.status(400).json({ error: 'Champ active requis' });
   db.prepare('UPDATE promos SET active = ? WHERE id = ?').run(active ? 1 : 0, promo.id);
   res.json(db.prepare('SELECT * FROM promos WHERE id = ?').get(promo.id));
+});
+
+/* ============ Admin : catégories ============ */
+app.get('/api/admin/categories', requireAdmin, (_req, res) => {
+  res.json(db.prepare('SELECT * FROM categories ORDER BY position, id').all());
+});
+
+app.post('/api/admin/categories', requireAdmin, (req, res) => {
+  const key = String(req.body?.key || '').toLowerCase().trim();
+  const label = String(req.body?.label || '').trim();
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(key)) return res.status(400).json({ error: 'Clé invalide (minuscules, chiffres, tirets)' });
+  if (label.length < 2 || label.length > 40) return res.status(400).json({ error: 'Libellé invalide' });
+  const maxPos = db.prepare('SELECT COALESCE(MAX(position), -1) AS n FROM categories').get().n;
+  try {
+    const { lastInsertRowid } = db.prepare('INSERT INTO categories (key, label, position) VALUES (?, ?, ?)').run(key, label, maxPos + 1);
+    res.status(201).json(db.prepare('SELECT * FROM categories WHERE id = ?').get(lastInsertRowid));
+  } catch {
+    res.status(409).json({ error: 'Cette clé de catégorie existe déjà' });
+  }
+});
+
+app.patch('/api/admin/categories/:id', requireAdmin, (req, res) => {
+  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+  if (!cat) return res.status(404).json({ error: 'Catégorie introuvable' });
+  const { label, active } = req.body || {};
+  if (label !== undefined) {
+    const clean = String(label).trim();
+    if (clean.length < 2 || clean.length > 40) return res.status(400).json({ error: 'Libellé invalide' });
+    db.prepare('UPDATE categories SET label = ? WHERE id = ?').run(clean, cat.id);
+  }
+  if (active !== undefined) {
+    db.prepare('UPDATE categories SET active = ? WHERE id = ?').run(active ? 1 : 0, cat.id);
+  }
+  res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(cat.id));
+});
+
+app.delete('/api/admin/categories/:id', requireAdmin, (req, res) => {
+  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+  if (!cat) return res.status(404).json({ error: 'Catégorie introuvable' });
+  const inUse = db.prepare('SELECT COUNT(*) AS n FROM products WHERE category = ?').get(cat.key).n;
+  if (inUse > 0) return res.status(400).json({ error: `Utilisée par ${inUse} pièce(s) — désactive-la plutôt, ou change leur catégorie d'abord` });
+  db.prepare('DELETE FROM categories WHERE id = ?').run(cat.id);
+  res.json({ ok: true });
 });
 
 /* ============ Admin : produits ============ */
